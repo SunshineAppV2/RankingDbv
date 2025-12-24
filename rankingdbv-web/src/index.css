@@ -1,0 +1,8 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  overscroll-behavior-y: contain; /* Prevents chrome native pull-to-refresh */
+  height: 100%;
+}

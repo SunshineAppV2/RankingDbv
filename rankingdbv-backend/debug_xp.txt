@@ -1,0 +1,29 @@
+Log started
+2025-12-17T23:51:13.778Z - [setRequirementStatus] User: fb1bf9af-82bc-488d-be71-631066994346, Req: cfd06c29-edc4-4d44-b0f0-fa7fe1c1c9d7, Status: "PENDING" vs ENUM: "APPROVED"
+2025-12-18T14:31:22.760Z - [setRequirementStatus] User: fb1bf9af-82bc-488d-be71-631066994346, Req: 1835c90f-acda-4df9-9405-bd49d45b5e0c, Status: "APPROVED" vs ENUM: "APPROVED"
+2025-12-18T14:31:22.834Z - [setRequirementStatus] Status matched APPROVED. Checking completions...
+2025-12-18T14:31:22.845Z - Checking Class Completion for User fb1bf9af-82bc-488d-be71-631066994346, Req 1835c90f-acda-4df9-9405-bd49d45b5e0c
+2025-12-18T14:31:22.879Z - Class Progress: 5/10 (50%)
+2025-12-18T14:31:22.891Z - Awarding 300 XP. New Milestone: 50
+2025-12-18T14:31:24.974Z - [setRequirementStatus] User: fb1bf9af-82bc-488d-be71-631066994346, Req: 8ae5c224-3649-4354-81f6-96d0f5c09614, Status: "APPROVED" vs ENUM: "APPROVED"
+2025-12-18T14:31:24.987Z - [setRequirementStatus] Status matched APPROVED. Checking completions...
+2025-12-18T14:31:24.991Z - Checking Class Completion for User fb1bf9af-82bc-488d-be71-631066994346, Req 8ae5c224-3649-4354-81f6-96d0f5c09614
+2025-12-18T14:31:25.000Z - Class Progress: 6/10 (60%)
+2025-12-18T14:31:25.006Z - No new milestone. Current: 50, Calc: 60
+2025-12-18T14:31:27.783Z - [setRequirementStatus] User: fb1bf9af-82bc-488d-be71-631066994346, Req: 3d385428-8e45-41c1-be3a-fc32683128cd, Status: "APPROVED" vs ENUM: "APPROVED"
+2025-12-18T14:31:27.800Z - [setRequirementStatus] Status matched APPROVED. Checking completions...
+2025-12-18T14:31:27.805Z - Checking Class Completion for User fb1bf9af-82bc-488d-be71-631066994346, Req 3d385428-8e45-41c1-be3a-fc32683128cd
+2025-12-18T14:31:27.814Z - Class Progress: 7/10 (70%)
+2025-12-18T14:31:27.818Z - No new milestone. Current: 50, Calc: 70
+2025-12-18T14:31:33.239Z - [setRequirementStatus] User: fb1bf9af-82bc-488d-be71-631066994346, Req: 3d385428-8e45-41c1-be3a-fc32683128cd, Status: "PENDING" vs ENUM: "APPROVED"
+2025-12-18T14:31:46.528Z - [setRequirementStatus] User: d563bc7f-fba3-4ec9-a0a6-eecf9771c5ee, Req: 6dda1766-547a-4b84-af51-701f70f9e62e, Status: "APPROVED" vs ENUM: "APPROVED"
+2025-12-18T14:31:46.539Z - [setRequirementStatus] Status matched APPROVED. Checking completions...
+2025-12-18T14:31:46.544Z - Checking Class Completion for User d563bc7f-fba3-4ec9-a0a6-eecf9771c5ee, Req 6dda1766-547a-4b84-af51-701f70f9e62e
+2025-12-18T14:31:46.554Z - Class Progress: 1/10 (10%)
+2025-12-18T14:31:46.558Z - No new milestone. Current: 0, Calc: 10
+2025-12-18T14:31:48.063Z - [setRequirementStatus] User: d563bc7f-fba3-4ec9-a0a6-eecf9771c5ee, Req: ef2b3225-4d83-4fb8-8aee-471a7350cbce, Status: "APPROVED" vs ENUM: "APPROVED"
+2025-12-18T14:31:48.087Z - [setRequirementStatus] Status matched APPROVED. Checking completions...
+2025-12-18T14:31:48.126Z - Checking Class Completion for User d563bc7f-fba3-4ec9-a0a6-eecf9771c5ee, Req ef2b3225-4d83-4fb8-8aee-471a7350cbce
+2025-12-18T14:31:48.162Z - Class Progress: 2/10 (20%)
+2025-12-18T14:31:48.180Z - No new milestone. Current: 0, Calc: 20
+2025-12-20T16:10:28.447Z - [setRequirementStatus] User: a93813be-d46c-4c98-af05-812a0483addd, Req: 03a5e854-5d32-43f2-82ec-eeb3681ab420, Status: "PENDING" vs ENUM: "APPROVED"

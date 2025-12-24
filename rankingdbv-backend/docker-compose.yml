@@ -1,0 +1,15 @@
+﻿services:
+  postgres:
+    image: postgres:15
+    container_name: rankingdbv_pg
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rankingdbv
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

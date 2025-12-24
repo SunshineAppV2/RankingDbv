@@ -1,0 +1,214 @@
+﻿import { useState, useEffect } from 'react';
+import { api } from '../lib/axios';
+import { useNavigate } from 'react-router-dom';
+import { Lock, Mail, ArrowRight, Settings, Server } from 'lucide-react';
+import { Modal } from '../components/Modal';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
+
+export function Login() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
+
+  // Server Config State
+  const [showSettings, setShowSettings] = useState(false);
+  const [serverUrl, setServerUrl] = useState(localStorage.getItem('api_url') || 'http://192.168.1.67:3000');
+
+  const handleSaveServer = () => {
+    localStorage.setItem('api_url', serverUrl);
+    window.location.reload(); // Reload to apply new axios config
+  };
+
+  // Force cleanup of any stuck modals
+  useEffect(() => {
+    document.body.style.overflow = 'unset';
+  }, []);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/auth/login', {
+        email,
+        password
+      });
+
+      const { access_token, user } = response.data;
+      login(access_token, user);
+
+      toast.success(`Login realizado com sucesso! Bem-vindo, ${user.name}`);
+      navigate('/dashboard');
+
+    } catch (err: any) {
+      console.error(err);
+      if (err.response?.data?.message === 'O acesso deste clube está suspenso. Contate a direção.') {
+        setIsSuspended(true);
+      } else if (err.response?.status === 401) {
+        toast.error('Email ou senha incorretos.');
+        setError('Email ou senha incorretos.');
+      } else {
+        toast.error('Erro ao conectar com o servidor.');
+        setError(`Erro de Conexão: ${err.message || 'Sem detalhes'}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden relative z-[100]">
+        <div className="bg-blue-600 p-8 text-center relative">
+          <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
+            <Lock className="text-white w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Cantinho DBV</h1>
+          <p className="text-blue-100">Acesse o painel do seu clube</p>
+
+          <button
+            onClick={() => setShowSettings(true)}
+            className="absolute top-4 right-4 p-2 text-white/50 hover:text-white transition-colors rounded-full hover:bg-white/10"
+            title="Configurar Servidor"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-8">
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                <span className="font-bold">Erro:</span> {error}
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="diretor@aguias.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Entrando...' : (<>Entrar no Sistema <ArrowRight className="w-5 h-5" /></>)}
+            </button>
+          </form>
+
+          {/* New Register Link */}
+          <div className="mt-6 text-center text-sm text-slate-600">
+            Ainda não tem conta?{' '}
+            <a href="/register" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+              Criar conta
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="Configuração do Servidor">
+        <div className="space-y-4">
+          <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm flex gap-2 items-start">
+            <Server className="w-5 h-5 shrink-0 mt-0.5" />
+            <p>Aqui você pode definir o endereço do servidor (backend). Isso é útil para acessar pelo celular na mesma rede Wi-Fi.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Endereço do Servidor (URL)</label>
+            <input
+              type="text"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="ex: http://192.168.0.10:3000"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <p className="text-xs text-slate-500 mt-1">Deve incluir http:// e a porta (geralmente :3000)</p>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-2">
+            <button
+              onClick={() => setShowSettings(false)}
+              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveServer}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold"
+            >
+              Salvar e Recarregar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Suspended Access Modal */}
+      <Modal isOpen={isSuspended} onClose={() => setIsSuspended(false)} title="Acesso Suspenso">
+        <div className="text-center space-y-6 py-4">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-10 h-10 text-red-600" />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-slate-800">Assinatura Vencida</h3>
+            <p className="text-slate-600">
+              O acesso ao sistema para este clube está temporariamente bloqueado devido a pendências na assinatura.
+            </p>
+            <p className="text-sm text-slate-500">
+              Entre em contato com o suporte para regularizar a situação e liberar o acesso imediatamente.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <a
+              href="https://wa.me/5591983292005?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20a%20assinatura%20do%20meu%20clube%20no%20Cantinho%20DBV."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors mb-3"
+            >
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5 filter brightness-0 invert" />
+              Falar com Suporte
+            </a>
+            <button
+              onClick={() => setIsSuspended(false)}
+              className="text-slate-500 hover:text-slate-700 text-sm font-medium"
+            >
+              Fechar e tentar novamente
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}

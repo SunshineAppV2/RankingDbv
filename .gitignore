@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+.vs
+.vscode
+.env
+*.log
+coverage
+.DS_Store
+android/app/build
+android/.gradle
+ios/App/App/public

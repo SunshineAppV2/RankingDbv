@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { FaqsService } from './faqs.service';
+import { FaqsController } from './faqs.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+    imports: [PrismaModule],
+    controllers: [FaqsController],
+    providers: [FaqsService],
+    exports: [FaqsService]
+})
+export class FaqsModule { }
