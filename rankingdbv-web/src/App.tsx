@@ -6,7 +6,7 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
-import { Members } from './pages/Members';
+import { Members } from './pages/members';
 import { Ranking } from './pages/Ranking';
 import { Clubs } from './pages/Clubs';
 import { Activities } from './pages/Activities';
@@ -31,6 +31,8 @@ import { ChildActivities } from './pages/ChildActivities';
 import { FinancialDashboard } from './pages/FinancialDashboard';
 import { Reports } from './pages/Reports';
 import { MinuteDetails } from './pages/MinuteDetails';
+import { SystemMessages } from './pages/SystemMessages';
+import { MasterTreasury } from './pages/MasterTreasury';
 
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -61,13 +63,17 @@ function App() {
                 <Route path="classes" element={<Classes />} />
                 <Route path="specialties" element={<Specialties />} />
                 <Route path="specialties-dashboard" element={<SpecialtiesDashboard />} />
-                <Route element={<ProtectedRoute allowedRoles={['OWNER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MASTER', 'OWNER', 'ADMIN']} />}>
                   <Route path="treasury" element={<Treasury />} />
                   <Route path="secretary" element={<Secretary />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="approvals" element={<Approvals />} />
                   <Route path="hierarchy" element={<Hierarchy />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="system-messages" element={<SystemMessages />} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['MASTER', 'OWNER']} />}>
+                  <Route path="master-treasury" element={<MasterTreasury />} />
                 </Route>
                 <Route path="events" element={<Events />} />
                 <Route path="requirements" element={<Requirements />} />

@@ -24,13 +24,13 @@ export function SubscriptionWidget() {
     if (loading || !status) return null;
 
     const usagePercent = Math.min(100, Math.round((status.activeMembers / status.memberLimit) * 100));
-    
+
     // Status Logic
     const isOverdue = status.subscriptionStatus === 'OVERDUE' || status.subscriptionStatus === 'CANCELED';
     const isWarning = usagePercent >= 90;
 
     const getPlanName = (tier: string) => {
-        switch(tier) {
+        switch (tier) {
             case 'PLAN_P': return 'Plano P (Pequeno)';
             case 'PLAN_M': return 'Plano M (Padrão)';
             case 'PLAN_G': return 'Plano G (Líder)';
@@ -60,11 +60,11 @@ export function SubscriptionWidget() {
                     </div>
                 </div>
                 <div className="text-right">
-                   {isOverdue && (
-                       <button className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">
-                           REGULARIZAR
-                       </button>
-                   )}
+                    {isOverdue && (
+                        <button className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+                            REGULARIZAR
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -77,18 +77,17 @@ export function SubscriptionWidget() {
                     </span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                            isOverdue ? 'bg-red-400' :
-                            isWarning ? 'bg-yellow-400' : 'bg-green-500'
-                        }`}
+                    <div
+                        className={`h-full rounded-full transition-all duration-500 ${isOverdue ? 'bg-red-400' :
+                                isWarning ? 'bg-yellow-400' : 'bg-green-500'
+                            }`}
                         style={{ width: `${usagePercent}%` }}
                     ></div>
                 </div>
                 {isWarning && !isOverdue && (
-                   <p className="text-[10px] text-yellow-700 mt-1 flex items-center gap-1">
-                       <AlertTriangle className="w-3 h-3" /> Lotação próxima do limite. Considere um upgrade.
-                   </p>
+                    <p className="text-[10px] text-yellow-700 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Lotação próxima do limite. Considere um upgrade.
+                    </p>
                 )}
             </div>
         </div>

@@ -6,4 +6,6 @@ export class CreateUnitDto {
 
     @IsString()
     clubId: string;
+
+    members?: string[];
 }

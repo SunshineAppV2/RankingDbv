@@ -8,8 +8,14 @@ export class UnitsService {
   constructor(private prisma: PrismaService) { }
 
   create(createUnitDto: CreateUnitDto) {
+    const { members, ...data } = createUnitDto;
     return this.prisma.unit.create({
-      data: createUnitDto
+      data: {
+        ...data,
+        members: members ? {
+          connect: members.map(id => ({ id }))
+        } : undefined
+      }
     });
   }
 

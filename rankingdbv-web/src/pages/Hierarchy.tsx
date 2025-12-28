@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
-import { ChevronRight, ChevronDown, Building2, MapPin, Globe, Pencil, Trash2, Plus, Settings, AlertTriangle, Search, LayoutGrid, List } from 'lucide-react';
+import { ChevronRight, ChevronDown, Building2, MapPin, Globe, Pencil, Trash2, Plus, Settings, AlertTriangle, Search, LayoutGrid, List, DollarSign, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClubSubscriptionModal } from '../components/ClubSubscriptionModal';
 import { useQuery } from '@tanstack/react-query';
@@ -44,6 +44,34 @@ export function Hierarchy() {
     const [createLoading, setCreateLoading] = useState(false);
     const [editingNode, setEditingNode] = useState<{ level: 'union' | 'mission' | 'region', oldName: string, newName: string } | null>(null);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+    // Payment Modal State
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [selectedClubForPayment, setSelectedClubForPayment] = useState<any | null>(null);
+    const [paymentMessage, setPaymentMessage] = useState('');
+    const [sendingPayment, setSendingPayment] = useState(false);
+
+    const DEFAULT_PAYMENT_MSG = `Olá! Sua assinatura do Cantinho DBV está vencendo. Para renovar, faça um PIX para a chave: 68323280282 (Alex Oliveira Seabra) e envie o comprovante.`;
+
+    const openPaymentModal = (club: any) => {
+        setSelectedClubForPayment(club);
+        setPaymentMessage(DEFAULT_PAYMENT_MSG);
+        setPaymentModalOpen(true);
+    };
+
+    const handleSendPayment = async () => {
+        if (!selectedClubForPayment) return;
+        setSendingPayment(true);
+        try {
+            await api.post(`/clubs/${selectedClubForPayment.id}/send-payment-info`, { message: paymentMessage });
+            toast.success('Cobrança enviada com sucesso!');
+            setPaymentModalOpen(false);
+        } catch (error) {
+            toast.error('Erro ao enviar cobrança.');
+        } finally {
+            setSendingPayment(false);
+        }
+    };
 
     // Filter Logic for Table
     const filteredClubs = allClubs.filter((club: any) =>
@@ -107,7 +135,7 @@ export function Hierarchy() {
     };
 
 
-    if (user?.email !== 'master@rankingdbv.com' && user?.role !== 'MASTER') {
+    if (user?.email !== 'master@cantinhodbv.com' && user?.role !== 'MASTER') {
         return <div className="p-8 text-center text-red-500">Acesso restrito ao Master.</div>;
     }
 
@@ -252,17 +280,33 @@ export function Hierarchy() {
                                                     {isWarning && <span className="ml-2 text-xs text-yellow-600 font-bold">({daysTo} dias)</span>}
                                                 </td>
                                                 <td className="p-4 text-center">
-                                                    <span className="bg-slate-100 px-2 py-1 rounded-full text-xs font-bold text-slate-600">
-                                                        {club._count?.users || 0} / {club.memberLimit || '∞'}
-                                                    </span>
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="bg-slate-100 px-2 py-1 rounded-full text-xs font-bold text-slate-600 mb-1" title="Membros Pagantes (Ativos)">
+                                                            {club.activeMembers || 0} / {club.memberLimit || '∞'}
+                                                        </span>
+                                                        {club.freeMembers > 0 && (
+                                                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-100" title="Pais / Isentos">
+                                                                + {club.freeMembers} Pais
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    <button
-                                                        onClick={() => setEditingSubscription(club)}
-                                                        className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 hover:border-blue-400 bg-blue-50 px-3 py-1.5 rounded transition-all"
-                                                    >
-                                                        Gerenciar
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => openPaymentModal(club)}
+                                                            className="text-green-600 hover:text-green-800 font-medium text-xs border border-green-200 hover:border-green-400 bg-green-50 px-3 py-1.5 rounded transition-all flex items-center gap-1"
+                                                            title="Enviar Cobrança"
+                                                        >
+                                                            <DollarSign className="w-3 h-3" /> Cobrar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEditingSubscription(club)}
+                                                            className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 hover:border-blue-400 bg-blue-50 px-3 py-1.5 rounded transition-all"
+                                                        >
+                                                            Gerenciar
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -391,6 +435,35 @@ export function Hierarchy() {
                         toast.success('Assinatura atualizada.');
                     }}
                 />
+            )}
+            {/* Payment Modal */}
+            {paymentModalOpen && selectedClubForPayment && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                            Enviar Cobrança: {selectedClubForPayment.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-4">Esta ação enviará uma notificação para os donos e diretores do clube.</p>
+
+                        <textarea
+                            value={paymentMessage}
+                            onChange={e => setPaymentMessage(e.target.value)}
+                            className="w-full h-32 p-3 border rounded-lg text-sm mb-4 bg-slate-50"
+                        />
+
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setPaymentModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+                            <button
+                                onClick={handleSendPayment}
+                                disabled={sendingPayment}
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {sendingPayment ? 'Enviando...' : <><Send className="w-4 h-4" /> Enviar Cobrança</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

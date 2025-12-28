@@ -2,14 +2,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClubDto } from './dto/create-club.dto';
 import { HIERARCHY_DATA, UNIONS_LIST } from './data/hierarchy.data';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ClubsService {
-    constructor(private prisma: PrismaService) { }
-
-    // ... (other methods)
-
-
+    constructor(
+        private prisma: PrismaService,
+        private notificationsService: NotificationsService
+    ) { }
 
     async create(createClubDto: CreateClubDto) {
         return this.prisma.club.create({
@@ -71,22 +71,44 @@ export class ClubsService {
     }
 
     async getAllClubsDetailed() {
-        return this.prisma.club.findMany({
-            select: {
-                id: true,
-                name: true,
-                union: true,
-                mission: true,
-                region: true,
-                planTier: true,
-                subscriptionStatus: true,
-                nextBillingDate: true,
-                memberLimit: true,
-                _count: {
-                    select: { users: true }
-                }
-            },
+        // We need advanced aggregation here.
+        // Prisma doesn't support conditional count in select easily without raw query or grouping.
+        // Let's fetch all necessary counts via groupBy
+
+        const clubs = await this.prisma.club.findMany({
             orderBy: { name: 'asc' }
+        });
+
+        // Group active users by club and role type (broadly) is hard in one go.
+        // Group by clubId and role
+        const roleCounts = await this.prisma.user.groupBy({
+            by: ['clubId', 'role'],
+            where: { isActive: true },
+            _count: { id: true }
+        });
+
+        // Process results
+        return clubs.map(club => {
+            // Filter counts for this club
+            const clubCounts = roleCounts.filter(rc => rc.clubId === club.id);
+
+            let paid = 0;
+            let free = 0;
+
+            clubCounts.forEach(rc => {
+                if (rc.role !== 'PARENT' && rc.role !== 'MASTER') {
+                    paid += rc._count.id;
+                } else {
+                    free += rc._count.id;
+                }
+            });
+
+            return {
+                ...club,
+                activeMembers: paid,
+                freeMembers: free,
+                totalMembers: paid + free
+            };
         });
     }
 
@@ -226,21 +248,39 @@ export class ClubsService {
                 subscriptionStatus: true,
                 nextBillingDate: true,
                 gracePeriodDays: true,
-                _count: {
-                    select: { users: true }
-                }
             }
         });
 
         if (!club) throw new Error('Clube não encontrado');
 
+        // Count Paid (All except Parents and Master)
+        const paidCount = await this.prisma.user.count({
+            where: {
+                clubId,
+                role: { notIn: ['PARENT', 'MASTER'] },
+                isActive: true
+            }
+        });
+
+        // Count Free (Parents + Master if any)
+        const freeCount = await this.prisma.user.count({
+            where: {
+                clubId,
+                role: { in: ['PARENT', 'MASTER'] },
+                isActive: true
+            }
+        });
+
         return {
             ...club,
-            activeMembers: club._count.users
+            activeMembers: paidCount,
+            freeMembers: freeCount,
+            totalMembers: paidCount + freeCount
         };
     }
+
     async updateSubscription(clubId: string, data: any) {
-        return this.prisma.club.update({
+        const result = await this.prisma.club.update({
             where: { id: clubId },
             data: {
                 planTier: data.planTier,
@@ -250,6 +290,49 @@ export class ClubsService {
                 gracePeriodDays: Number(data.gracePeriodDays)
             }
         });
+
+        // Auto-create Treasury Entry if payment amount is provided
+        if (data.lastPaymentAmount && Number(data.lastPaymentAmount) > 0) {
+            await this.prisma.masterTransaction.create({
+                data: {
+                    type: 'INCOME',
+                    amount: Number(data.lastPaymentAmount),
+                    description: `Assinatura - Plano ${data.planTier || result.planTier}`,
+                    category: 'Assinatura',
+                    sourceClubId: clubId,
+                    date: new Date()
+                }
+            });
+        }
+
+        return result;
+    }
+
+    async sendPaymentInfo(clubId: string, message?: string) {
+        const club = await this.prisma.club.findUnique({ where: { id: clubId } });
+        if (!club) throw new Error('Clube não encontrado');
+
+        const admins = await this.prisma.user.findMany({
+            where: {
+                clubId,
+                role: { in: ['OWNER', 'ADMIN'] },
+                isActive: true
+            },
+            select: { id: true }
+        });
+
+        const finalMessage = message || `Olá! Sua assinatura do Ranking DBV está vencendo. Para renovar, faça um PIX para a chave: 68323280282 (Alex Oliveira Seabra) e envie o comprovante.`;
+
+        for (const admin of admins) {
+            await this.notificationsService.send(
+                admin.id,
+                'Renovação de Assinatura Ranking DBV',
+                finalMessage,
+                'WARNING'
+            );
+        }
+
+        return { count: admins.length };
     }
 
     async checkWriteAccess(clubId: string) {

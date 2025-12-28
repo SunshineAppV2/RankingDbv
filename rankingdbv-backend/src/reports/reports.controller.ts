@@ -40,7 +40,7 @@ export class ReportsController {
     private checkPermission(user: any) {
         const allowedRoles = ['OWNER', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TREASURER', 'MASTER'];
         // Master bypass or check role
-        if (user.email === 'master@rankingdbv.com') return; // Master has access
+        if (user.email === 'master@cantinhodbv.com') return; // Master has access
 
         if (!allowedRoles.includes(user.role)) {
             throw new UnauthorizedException('Acesso restrito à diretoria.');

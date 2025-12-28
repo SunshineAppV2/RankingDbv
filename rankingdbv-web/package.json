@@ -1,5 +1,5 @@
 {
-  "name": "rankingdbv-web",
+  "name": "cantinhodbv-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -17,8 +17,10 @@
     "@tanstack/react-query": "^5.90.12",
     "axios": "^1.7.0",
     "date-fns": "^4.1.0",
+    "firebase": "^12.7.0",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

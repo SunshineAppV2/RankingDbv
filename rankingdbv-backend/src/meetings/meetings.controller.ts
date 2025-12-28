@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, UseInterceptors, UploadedFile, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, UseInterceptors, UploadedFile, Request, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MeetingsService } from './meetings.service';
@@ -15,9 +15,14 @@ export class MeetingsController {
         return this.meetingsService.create(createMeetingDto);
     }
 
+    @Patch(':id')
+    update(@Param('id') id: string, @Body() updateMeetingDto: any) {
+        return this.meetingsService.update(id, updateMeetingDto);
+    }
+
     @Get('club/:clubId')
     findAllByClub(@Param('clubId') clubId: string, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.clubId !== clubId) {
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.clubId !== clubId) {
             throw new UnauthorizedException('Acesso negado aos dados deste clube.');
         }
         return this.meetingsService.findAllByClub(clubId);

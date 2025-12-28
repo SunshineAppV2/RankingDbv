@@ -87,7 +87,7 @@ export function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* Master Only: Subscription Management Link */}
-                {(user?.email === 'master@rankingdbv.com' || user?.role === 'MASTER') && (
+                {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
                     <div className="md:col-span-2 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-xl shadow-lg text-white flex items-center justify-between relative overflow-hidden">
                         <div className="relative z-10">
                             <h3 className="text-xl font-bold mb-1">Gerenciar Assinaturas (Master)</h3>

@@ -1,44 +1,33 @@
-# Check and Start Servers Script
+FUNÇÃO DE CONSELHEIRO
+INSTRUTOR
+DIRETOR
 
-$BackendPort = 3000
-$FrontendPort = 5173
-$BackendPath = "$PSScriptRoot\rankingdbv-backend"
-$FrontendPath = "$PSScriptRoot\rankingdbv-web"
+ELES TEM A POSSIBILIDADE ENVIAR REQUISITOS PARA SEREM FEITOS
 
-function Test-PortConnection {
-    param (
-        [int]$Port
-    )
-    $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-    return $null -ne $connection
-}
+OS REQUITOS DEVEM APARECER PARA OS DESBRAVADORES EM SEU PERFIL COM DESTAQUE EM LARANJA, E FICAR VERDE QUANDO FOR APROVADO.
 
-function Start-Backend {
-    Write-Host "Iniciando Backend..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; npm run start:dev"
-}
+VAMOS APLICAR MUITIPLAS FUNCOES E SEPARAR OS NIVEIS DE ACESSO
 
-function Start-Frontend {
-    Write-Host "Iniciando Frontend..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$FrontendPath'; npm run dev"
-}
+DIRETOR E SECRETARIOS TEM ACESSO TOTAL
+TESOURARIA ACESSOA FINANCEIRO
+INSTRUTORES QUANDO ASSOCIADO A ESPECIALIDADE ELES FARAO A ASSOCIAÇÃO DOS MEMBROS NA ESPECIALIDADE E CLASSES.
 
-# Check Backend
-if (Test-PortConnection $BackendPort) {
-    Write-Host "Backend rodando na porta $BackendPort." -ForegroundColor Green
-}
-else {
-    Write-Host "Backend NÃO encontrado na porta $BackendPort." -ForegroundColor Red
-    Start-Backend
-}
+VAMOS TER A FUNÇÃO DE INSTRUTOR DE DEVERÁ ESTAR ASSOCIADO A UMA CLASSE OU ESPECIALIDADE PARA TER ACESSO
 
-# Check Frontend
-if (Test-PortConnection $FrontendPort) {
-    Write-Host "Frontend rodando na porta $FrontendPort." -ForegroundColor Green
-}
-else {
-    Write-Host "Frontend NÃO encontrado na porta $FrontendPort." -ForegroundColor Red
-    Start-Frontend
-}
+OS CONSELHEIROS TERÃO A LIBERDADE DE LANÇAR E VALIDAR OS REQUISITOS QUANDO PRECISO
 
-Write-Host "Verificação concluída." -ForegroundColor Cyan
+TODOS OS REQUISITOS DEVE CONSTAR. APROVADO POR.
+
+
+
+
+
+SIMPLIFICAR O MENU E REMOVER O QUE TIVER FUNÇÕES SIMILARES TIPO,  DOIS BOTOES BOTOES QUE LEVAM PARA A MESMA FUNCIONALIDADE
+
+
+
+NO ACESSO DO MASTER, IMPLEMENTAR E LIBERAR IMPORTAÇÃO VIA URL DOS REQUISITOS CLASSE E ESPECIALIDADES, COM UM POPUP PARA ORGANIZAR OS REQUISITOS OU AGRUPAR
+NO CADASTRO DO MASTER, EXIBIR OS CADASTROS DE ASSOCIÇÃO, DISTRITOS E UNIÕES
+
+Talvez avançar para o Financeiro/Seguro, Loja Virtual ou Eventos?)
+

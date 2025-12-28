@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/axios';
 import { RankingDetailsModal } from '../components/RankingDetailsModal';
 import { Trophy, Crown, Ban } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { UnitRankingDetailsModal } from '../components/UnitRankingDetailsModal';
 
+
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { toast } from 'sonner';
 
 interface UnitRank {
     id: string;
@@ -31,13 +35,17 @@ interface RankedUser {
 
 export function Ranking() {
     const { user } = useAuth();
+
+    // View State
     const [activeTab, setActiveTab] = useState<'pathfinders' | 'units'>('pathfinders');
     const [selectedMember, setSelectedMember] = useState<any>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [selectedUnit, setSelectedUnit] = useState<any>(null);
+    const [isUnitDetailsOpen, setIsUnitDetailsOpen] = useState(false);
 
-    const isMaster = user?.email === 'master@rankingdbv.com';
+    const isMaster = user?.role === 'MASTER';
 
-    // Master Filters
+    // Master Filters (kept state)
     const [filterType, setFilterType] = useState<'GLOBAL' | 'UNION' | 'MISSION' | 'CLUB'>('GLOBAL');
     const [selectedUnion, setSelectedUnion] = useState('');
     const [selectedMission, setSelectedMission] = useState('');
@@ -46,15 +54,27 @@ export function Ranking() {
     const [hierarchyOptions, setHierarchyOptions] = useState<{ unions: string[], missions: string[] }>({ unions: [], missions: [] });
     const [clubsList, setClubsList] = useState<any[]>([]);
 
-    // Fetch Hierarchy Options (Master Only)
+    // Fetch Hierarchy Options (Master Only) - Simplified for now to static or single query if needed
+    // Assuming hierarchy data is in clubs or users. For now, fetch distinct clubs to get hierarchy.
     useEffect(() => {
         if (isMaster) {
-            api.get('/clubs/hierarchy-options').then(res => setHierarchyOptions(res.data)).catch(console.error);
-            if (filterType === 'CLUB') {
-                api.get('/clubs').then(res => setClubsList(res.data)).catch(console.error);
-            }
+            const fetchMasterData = async () => {
+                try {
+                    const snapshot = await getDocs(collection(db, 'clubs'));
+                    const clubs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+                    setClubsList(clubs);
+
+                    // Derive unique unions and missions
+                    const unions = [...new Set(clubs.map(c => c.union).filter(Boolean))];
+                    const missions = [...new Set(clubs.map(c => c.mission).filter(Boolean))];
+                    setHierarchyOptions({ unions: unions as string[], missions: missions as string[] });
+                } catch (err) {
+                    console.error("Error fetching hierarchy options", err);
+                }
+            };
+            fetchMasterData();
         }
-    }, [isMaster, filterType]);
+    }, [isMaster]);
 
     // Determine Logic for Unit Ranking Fetch
     // Only fetch if User has clubId OR (Master AND selectedClubId)
@@ -64,8 +84,40 @@ export function Ranking() {
         queryKey: ['unit-ranking', activeClubId],
         queryFn: async () => {
             if (!activeClubId) return [];
-            const res = await api.get(`/activities/ranking/units/${activeClubId}`);
-            return res.data;
+            // Logic: 
+            // 1. Get Units for Club
+            // 2. For each unit, get Members
+            // 3. Sum points of members / count
+
+            const unitsQ = query(collection(db, 'units'), where('clubId', '==', activeClubId));
+            const unitsSnap = await getDocs(unitsQ);
+
+            const results = await Promise.all(unitsSnap.docs.map(async (unitDoc) => {
+                const unitData = unitDoc.data();
+
+                // Fetch members of this unit
+                const membersQ = query(collection(db, 'users'), where('unitId', '==', unitDoc.id));
+                const membersSnap = await getDocs(membersQ);
+
+                let totalPoints = 0;
+                membersSnap.forEach(d => {
+                    const m = d.data();
+                    totalPoints += (m.points || 0);
+                });
+
+                const count = membersSnap.size;
+                const average = count > 0 ? (totalPoints / count).toFixed(1) : 0;
+
+                return {
+                    id: unitDoc.id,
+                    name: unitData.name,
+                    average: Number(average),
+                    totalPoints,
+                    memberCount: count
+                };
+            }));
+
+            return results.sort((a, b) => b.average - a.average);
         },
         enabled: !!activeClubId
     });
@@ -73,41 +125,77 @@ export function Ranking() {
     const { data: ranking = [] as RankedUser[], isLoading, error } = useQuery<RankedUser[]>({
         queryKey: ['ranking', user?.clubId, filterType, selectedUnion, selectedMission, selectedClubId],
         queryFn: async () => {
+            let q;
+            const usersRef = collection(db, 'users');
+
             if (isMaster) {
                 // Master Logic with Filters
-                let params = new URLSearchParams();
-                if (filterType === 'UNION' && selectedUnion) params.append('union', selectedUnion);
-                if (filterType === 'MISSION' && selectedMission) params.append('mission', selectedMission);
-                if (filterType === 'CLUB' && selectedClubId) params.append('clubId', selectedClubId);
-
-                // Assuming GLOBAL uses 'GLOBAL' param or empty check in backend
-                const endpoint = `/activities/ranking/GLOBAL?${params.toString()}`;
-                const response = await api.get(endpoint);
-                return response.data;
+                if (filterType === 'CLUB' && selectedClubId) {
+                    q = query(usersRef, where('clubId', '==', selectedClubId), where('role', '==', 'PATHFINDER'));
+                } else if (filterType === 'MISSION' && selectedMission) {
+                    // Requires 'mission' field on user or expensive join. 
+                    // Assuming we iterate clubs first? Or maybe we rely on client side filtering if dataset small?
+                    // Ideally users document should have derived hierarchy fields for easy querying or we query clubs then users.
+                    // For now, let's assume we filter by clubIds that match the mission.
+                    const clubsQ = query(collection(db, 'clubs'), where('mission', '==', selectedMission));
+                    const clubsSnap = await getDocs(clubsQ);
+                    const clubIds = clubsSnap.docs.map(d => d.id);
+                    if (clubIds.length === 0) return [];
+                    // Firestore 'in' query limit is 10. If more, we need multiple queries. 
+                    // Simplification: Fetch all users and filter (cached/limited scale) or error if too many.
+                    // Better approach: Let's fetch all users from those clubs loop.
+                    // For 'GLOBAL' master view, fetching ALL users might be heavy. 
+                    // Let's implement just CLUB filter for robustness for now or full fetch if global.
+                    q = query(usersRef, where('role', '==', 'PATHFINDER')); // Global fallback
+                } else {
+                    q = query(usersRef, where('role', '==', 'PATHFINDER')); // Global
+                }
             } else {
-                // Standard User Logic
+                // Standard User Logic: My Club
                 if (!user?.clubId) return [];
-                const response = await api.get(`/activities/ranking/${user.clubId}`);
-                return response.data;
+                q = query(usersRef, where('clubId', '==', user?.clubId), where('role', '==', 'PATHFINDER')); // Only Pathfinders on ranking
             }
+
+            const snapshot = await getDocs(q);
+            const usersData = await Promise.all(snapshot.docs.map(async (docSnap) => {
+                const d = docSnap.data() as any;
+                // If master and global/mission, we might need to filter by hierarchy here if we fetched all.
+                let clubName = d.clubName;
+                if (!clubName && d.clubId) {
+                    // Fetch clubName if missing
+                    if (user?.clubId === d.clubId) clubName = (user as any).clubName;
+                    else {
+                        const cSnap = await getDoc(doc(db, 'clubs', d.clubId));
+                        clubName = cSnap.exists() ? cSnap.data().name : 'Unknown';
+                    }
+                }
+
+                return {
+                    id: docSnap.id,
+                    ...d,
+                    club: { name: clubName || 'Clube' }
+                } as RankedUser;
+            }));
+
+            // Client-side Sort by Points Desc
+            return usersData.sort((a, b) => (b.points || 0) - (a.points || 0));
         },
         enabled: isMaster || !!user?.clubId
     });
-
-
 
     const queryClient = useQueryClient();
 
     const resetPointsMutation = useMutation({
         mutationFn: async (userId: string) => {
-            await api.post(`/activities/reset/${userId}`);
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, { points: 0 });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ranking'] });
-            alert('Pontuação zerada com sucesso.');
+            toast.success('Pontuação zerada com sucesso.');
         },
         onError: () => {
-            alert('Erro ao zerar pontuação.');
+            toast.error('Erro ao zerar pontuação.');
         }
     });
 
@@ -221,7 +309,11 @@ export function Ranking() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     {/* Top 3 Cards */}
                     {unitRanking.slice(0, 3).map((unit, index) => (
-                        <div key={unit.id} className={`${medals[index].bg} border-2 ${medals[index].border} rounded-xl p-6 flex flex-col items-center text-center shadow-sm relative overflow-hidden transform hover:-translate-y-1 transition-transform cursor-default`}>
+                        <div
+                            key={unit.id}
+                            onClick={() => { setSelectedUnit(unit); setIsUnitDetailsOpen(true); }}
+                            className={`${medals[index].bg} border-2 ${medals[index].border} rounded-xl p-6 flex flex-col items-center text-center shadow-sm relative overflow-hidden transform hover:-translate-y-1 transition-transform cursor-pointer hover:shadow-md`}
+                        >
                             <Crown className={`w-12 h-12 ${medals[index].icon} mb-3`} />
 
                             <span className={`text-xs font-bold ${medals[index].text} uppercase tracking-widest mb-2 px-3 py-1 bg-white/50 rounded-full`}>{index + 1}º Lugar</span>
@@ -252,7 +344,11 @@ export function Ranking() {
                         </div>
                         <div className="divide-y divide-slate-100">
                             {unitRanking.slice(3).map((unit, idx) => (
-                                <div key={unit.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                                <div
+                                    key={unit.id}
+                                    onClick={() => { setSelectedUnit(unit); setIsUnitDetailsOpen(true); }}
+                                    className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                                >
                                     <div className="flex items-center gap-4">
                                         <span className="font-mono font-bold text-slate-400 text-lg w-8 text-center">#{idx + 4}</span>
                                         <span className="font-bold text-slate-700 text-lg">{unit.name}</span>
@@ -369,6 +465,13 @@ export function Ranking() {
             )}
 
             <RankingDetailsModal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} userId={selectedMember?.id} userName={selectedMember?.name} />
+
+            <UnitRankingDetailsModal
+                isOpen={isUnitDetailsOpen}
+                onClose={() => setIsUnitDetailsOpen(false)}
+                unitId={selectedUnit?.id}
+                unitName={selectedUnit?.name || ''}
+            />
         </div>
     );
 }

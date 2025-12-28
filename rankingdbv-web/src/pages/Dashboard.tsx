@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/axios';
 import { Users, Trophy, Calendar, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SimpleBarChart } from '../components/Charts';
 import { Skeleton } from '../components/Skeleton';
 import { Modal } from '../components/Modal';
 import { PullToRefreshWrapper } from '../components/PullToRefreshWrapper';
+import { ROLE_TRANSLATIONS } from './members/types';
 
 import { SubscriptionWidget } from '../components/SubscriptionWidget';
 import { SignaturesWidget } from '../components/SignaturesWidget';
 
 import { FamilyDashboard } from './FamilyDashboard';
+
+// Firestore Imports
+import { collection, query, where, getDocs, orderBy, limit, getDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export function Dashboard() {
     const { user } = useAuth();
@@ -23,13 +27,77 @@ export function Dashboard() {
         return <FamilyDashboard />;
     }
 
-    // Stats Query from new Endpoint
+    // Stats Query from Firestore
     const { data: stats, isLoading } = useQuery({
         queryKey: ['dashboard-stats', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return null;
-            const response = await api.get('/dashboard/stats');
-            return response.data;
+            const clubId = user.clubId;
+
+            // 1. Members and Birthdays
+            const usersQ = query(collection(db, 'users'), where('clubId', '==', clubId));
+            const usersSnap = await getDocs(usersQ);
+            const activeMembers = usersSnap.size;
+
+            const currentMonth = new Date().getMonth();
+            const birthdays = usersSnap.docs
+                .map(d => ({ id: d.id, ...d.data() } as any))
+                .filter(u => {
+                    if (!u.birthDate) return false;
+                    const bd = new Date(u.birthDate);
+                    return bd.getMonth() === currentMonth;
+                })
+                .map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    role: u.role,
+                    day: new Date(u.birthDate).getDate()
+                }))
+                .sort((a, b) => a.day - b.day);
+
+            // 2. Next Event
+            const today = new Date().toISOString();
+            const eventsQ = query(
+                collection(db, 'meetings'),
+                where('clubId', '==', clubId),
+                where('date', '>=', today),
+                orderBy('date', 'asc'),
+                limit(1)
+            );
+            const eventsSnap = await getDocs(eventsQ);
+            const nextEvent = eventsSnap.empty ? null : {
+                id: eventsSnap.docs[0].id,
+                ...eventsSnap.docs[0].data(),
+                startDate: eventsSnap.docs[0].data().date
+            };
+
+            // 3. Attendance Stats (Last 5 meetings)
+            // WORKAROUND: Fetch all meetings (usually small number/year) and sort client side to avoid index requirement for now
+            const allMeetingsQ = query(collection(db, 'meetings'), where('clubId', '==', clubId));
+            const allMeetingsSnap = await getDocs(allMeetingsQ);
+
+            const attendanceStats = allMeetingsSnap.docs
+                .map(d => d.data())
+                .filter(m => new Date(m.date) < new Date()) // Only past
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Ascending for chart
+                .slice(-5) // Last 5
+                .map((m: any) => ({
+                    date: new Date(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                    count: m._count?.attendances || 0
+                }));
+
+            // 4. Financial
+            // Assuming simplified model: club document has balance
+            const clubSnap = await getDoc(doc(db, 'clubs', clubId));
+            const financial = { balance: clubSnap.exists() ? ((clubSnap.data() as any).balance || 0) : 0 };
+
+            return {
+                activeMembers,
+                birthdays,
+                nextEvent: nextEvent as any,
+                attendanceStats,
+                financial
+            };
         },
         enabled: !!user?.clubId
     });
@@ -182,7 +250,7 @@ export function Dashboard() {
                                         </div>
                                         <div className="flex-1">
                                             <p className="font-medium text-slate-800 text-sm">{b.name}</p>
-                                            <p className="text-xs text-slate-400 capitalize">{b.role.toLowerCase()}</p>
+                                            <p className="text-xs text-slate-400 capitalize">{ROLE_TRANSLATIONS[b.role] || b.role}</p>
                                         </div>
                                     </li>
                                 ))}
@@ -207,7 +275,7 @@ export function Dashboard() {
                                     </div>
                                     <div>
                                         <p className="font-bold text-slate-800">{b.name}</p>
-                                        <p className="text-sm text-slate-500 capitalize">{b.role.toLowerCase()}</p>
+                                        <p className="text-sm text-slate-500 capitalize">{ROLE_TRANSLATIONS[b.role] || b.role}</p>
                                     </div>
                                 </li>
                             ))}

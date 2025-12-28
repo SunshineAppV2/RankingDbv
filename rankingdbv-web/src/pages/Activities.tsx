@@ -4,11 +4,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/axios';
 import { CheckSquare, Plus, Edit, Trash2, Award, FileSpreadsheet, BookOpen, Medal, UserPlus, Link, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 import { Modal } from '../components/Modal';
 import { SpecialtyDetailsModal } from '../components/SpecialtyDetailsModal';
 import { AdminSpecialtyReviewModal } from '../components/AdminSpecialtyReviewModal';
 
 import { useNavigate } from 'react-router-dom';
+
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, increment, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Activity {
     id: string;
@@ -103,12 +107,15 @@ export function Activities() {
     const isAdmin = ['OWNER', 'ADMIN', 'INSTRUCTOR'].includes(user?.role || '');
 
     // Queries
+
+    // Queries
     const { data: activities = [], isLoading: isLoadingActivities } = useQuery<Activity[]>({
         queryKey: ['activities', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return [];
-            const response = await api.get(`/activities/club/${user.clubId}`);
-            return response.data;
+            const q = query(collection(db, 'activities'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Activity));
         },
         enabled: !!user?.clubId
     });
@@ -116,48 +123,68 @@ export function Activities() {
     const { data: specialties = [] } = useQuery<Specialty[]>({
         queryKey: ['specialties-feed'], // consistent cache key
         queryFn: async () => {
-            const response = await api.get('/specialties');
-            return response.data;
-        }
+            const snapshot = await getDocs(collection(db, 'specialties'));
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Specialty));
+        },
+        staleTime: 1000 * 60 * 60 // 1 hour
     });
 
     const { data: members = [] } = useQuery<Member[]>({
         queryKey: ['members'],
         queryFn: async () => {
-            const response = await api.get('/users');
-            return response.data;
+            if (!user?.clubId) return [];
+            const q = query(collection(db, 'users'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Member));
         },
-        enabled: isAwardModalOpen || isAssignModalOpen
+        enabled: (isAwardModalOpen || isAssignModalOpen) && !!user?.clubId
     });
 
     const { data: mySpecialties = [] } = useQuery<UserSpecialty[]>({
-        queryKey: ['my-specialties-profile'], // Reuse key for cache
+        queryKey: ['my-specialties-profile', user?.uid], // Reuse key for cache
         queryFn: async () => {
-            const response = await api.get('/specialties/my');
-            return response.data;
-        }
+            if (!user?.uid) return [];
+            const q = query(collection(db, 'user_specialties'), where('userId', '==', user.uid));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as UserSpecialty));
+        },
+        enabled: !!user?.uid
     });
-
-
-
 
     const { data: units = [] } = useQuery<any[]>({
         queryKey: ['units', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return [];
-            const response = await api.get(`/activities/ranking/units/${user.clubId}`);
-            return response.data;
+            const q = query(collection(db, 'units'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         },
         enabled: !!user?.clubId && isAwardModalOpen && selectedActivityForAward?.type === 'UNIT'
     });
 
     const { data: pendingApprovals = { requirements: [], specialties: [] } } = useQuery({
-        queryKey: ['pending-approvals'],
+        queryKey: ['pending-approvals', user?.clubId],
         queryFn: async () => {
-            const response = await api.get('/specialties/pending');
-            return response.data;
+            if (!user?.clubId) return { requirements: [], specialties: [] };
+            // Mocking pending approvals for now as it requires complex joins or denormalization
+            // Logic: Query 'user_specialties' where status == 'WAITING_APPROVAL' and clubId == user.clubId
+            const q = query(collection(db, 'user_specialties'), where('clubId', '==', user.clubId), where('status', '==', 'WAITING_APPROVAL'));
+            const snapshot = await getDocs(q);
+            // Manually join with User and Specialty
+            const specs = await Promise.all(snapshot.docs.map(async (d: any) => {
+                const data = d.data();
+                const userSnap = await getDoc(doc(db, 'users', data.userId));
+                const specSnap = await getDoc(doc(db, 'specialties', data.specialtyId));
+                return {
+                    ...data,
+                    id: d.id,
+                    user: userSnap.exists() ? userSnap.data() : { name: 'Unknown' },
+                    requirement: { specialty: specSnap.exists() ? specSnap.data() : { name: 'Unknown' }, specialtyId: data.specialtyId }
+                };
+            }));
+            return { requirements: specs, specialties: [] }; // Using 'requirements' array structure to match existing logic
         },
-        enabled: isAdmin // Only fetch if admin
+        enabled: isAdmin && !!user?.clubId
     });
 
     // Merged Data
@@ -334,73 +361,109 @@ export function Activities() {
 
     const createActivityMutation = useMutation({
         mutationFn: async (newActivity: any) => {
-            const response = await api.post('/activities', {
+            // Generate ID automatically via addDoc, returns DocumentReference
+            return await addDoc(collection(db, 'activities'), {
                 ...newActivity,
-                clubId: user?.clubId
+                clubId: user?.clubId,
+                createdAt: new Date().toISOString()
             });
-            return response.data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['activities'] });
             closeModal();
+            toast.success('Atividade criada!');
         },
-        onError: (err) => {
+        onError: (err: any) => {
             console.error(err);
-            alert('Erro ao criar atividade. Verifique os dados.');
+            alert('Erro ao criar atividade: ' + err.message);
         }
     });
 
     const updateActivityMutation = useMutation({
         mutationFn: async (data: { id: string, updates: any }) => {
-            const response = await api.put(`/activities/${data.id}`, data.updates);
-            return response.data;
+            const docRef = doc(db, 'activities', data.id);
+            await updateDoc(docRef, data.updates);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['activities'] });
             closeModal();
+            toast.success('Atividade atualizada!');
         },
-        onError: (err) => {
+        onError: (err: any) => {
             console.error(err);
-            alert('Erro ao atualizar atividade. Verifique os dados.');
+            alert('Erro ao atualizar: ' + err.message);
         }
     });
 
     const deleteActivityMutation = useMutation({
         mutationFn: async (id: string) => {
-            await api.delete(`/activities/${id}`);
+            await deleteDoc(doc(db, 'activities', id));
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['activities'] });
+            toast.success('Atividade excluída!');
         },
-        onError: (err) => {
+        onError: (err: any) => {
             console.error(err);
-            alert('Erro ao excluir atividade.');
+            alert('Erro ao excluir: ' + err.message);
         }
     });
 
     const awardPointsMutation = useMutation({
         mutationFn: async (data: { userId?: string, unitId?: string, activityId: string }) => {
-            return api.post('/activities/score', data);
+            // Batch write: Add Points Log AND Increment User Log
+            const batch = writeBatch(db);
+            const userRef = doc(db, 'users', data.userId!);
+            const logRef = doc(collection(db, 'points_logs')); // auto-generate ID for logs
+
+            // 1. Log the transaction
+            const points = selectedActivityForAward?.points || 0;
+            batch.set(logRef, {
+                userId: data.userId,
+                activityId: data.activityId,
+                points: points,
+                reason: selectedActivityForAward?.title || 'Atividade',
+                type: 'ACTIVITY',
+                createdAt: new Date().toISOString(),
+                clubId: user?.clubId
+            });
+
+            // 2. Increment User Points (Using Firestore increment to be safe)
+            batch.update(userRef, {
+                points: increment(points)
+            });
+
+            await batch.commit();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ranking'] });
         },
         onError: (err) => {
             console.error("Erro ao pontuar usuário", err);
+            toast.error("Erro ao lançar pontos");
         }
     });
 
     const assignSpecialtyMutation = useMutation({
         mutationFn: async (data: { userId: string, specialtyId: string }) => {
-            return api.post(`/specialties/assign/${data.userId}/${data.specialtyId}`);
+            // Check if already assigned? Ideally query first but for simplicity just adding
+            return await addDoc(collection(db, 'user_specialties'), {
+                userId: data.userId,
+                specialtyId: data.specialtyId,
+                status: 'IN_PROGRESS',
+                clubId: user?.clubId,
+                assignedAt: new Date().toISOString()
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['member-specialties'] });
             queryClient.invalidateQueries({ queryKey: ['my-specialties-profile'] });
             queryClient.invalidateQueries({ queryKey: ['specialties-feed'] });
+            toast.success('Especialidade atribuída!');
         },
         onError: (err) => {
             console.error(err);
+            toast.error('Erro ao atribuir especialidade.');
         }
     });
 
@@ -904,7 +967,7 @@ export function Activities() {
                             {units.length === 0 ? (
                                 <div className="p-4 text-center text-slate-500 text-sm">Nenhuma unidade encontrada.</div>
                             ) : (
-                                units.map((u: any) => (
+                                [...units].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((u: any) => (
                                     <label key={u.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0">
                                         <input
                                             type="radio"

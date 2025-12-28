@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/axios';
+
 import { useAuth } from '../contexts/AuthContext';
 import { Search, Filter, FileText, Activity, Shield, CheckCircle, AlertCircle, Edit, Users, BookOpen } from 'lucide-react';
 import { SecretaryMemberModal } from '../components/SecretaryMemberModal';
 import { SecretaryMinutesList } from '../components/SecretaryMinutesList';
 import { SecretaryMinuteEditor } from '../components/SecretaryMinuteEditor';
+
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export function Secretary() {
     const { user } = useAuth();
@@ -15,12 +18,15 @@ export function Secretary() {
     const [isMinuteEditorOpen, setIsMinuteEditorOpen] = useState(false);
     const [editingMinute, setEditingMinute] = useState<any>(null);
 
+
+
     const { data: members = [], refetch } = useQuery({
         queryKey: ['secretary-members', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return [];
-            const response = await api.get('/users');
-            return response.data;
+            const q = query(collection(db, 'users'), where('clubId', '==', user.clubId));
+            const snaps = await getDocs(q);
+            return snaps.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         enabled: !!user?.clubId
     });

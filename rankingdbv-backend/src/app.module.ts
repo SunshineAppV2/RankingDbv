@@ -19,6 +19,8 @@ import { ClassesModule } from './classes/classes.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
 import { SecretaryModule } from './secretary/secretary.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { MasterTreasuryModule } from './master-treasury/master-treasury.module';
 
 @Module({
   imports: [
@@ -35,12 +37,13 @@ import { SecretaryModule } from './secretary/secretary.module';
     StoreModule,
     NotificationsModule,
     RequirementsModule,
-    RequirementsModule,
     FaqsModule,
     ClassesModule,
     DashboardModule,
     ReportsModule,
     SecretaryModule,
+    UploadsModule,
+    MasterTreasuryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

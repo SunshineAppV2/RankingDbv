@@ -54,6 +54,13 @@ export class MeetingsService {
         });
     }
 
+    async update(id: string, data: any) {
+        return this.prisma.meeting.update({
+            where: { id },
+            data
+        });
+    }
+
     async registerAttendance(meetingId: string, attendanceDto: AttendanceDto) {
         const meeting = await this.prisma.meeting.findUnique({ where: { id: meetingId } });
         if (!meeting) throw new Error('Meeting not found');
@@ -76,28 +83,44 @@ export class MeetingsService {
                         }
                     });
 
-                    // 2. Award Points
-                    if (meeting.activityId) {
-                        // Use Activity Service (Generate Log + Points)
-                        await this.activitiesService.awardPoints({
-                            userId,
-                            activityId: meeting.activityId
+                    // 2. Determine Beneficiaries
+                    let beneficiaries: string[] = [userId];
+
+                    if (meeting.type === 'PARENTS') {
+                        const children = await tx.user.findMany({
+                            where: { parentId: userId }
                         });
-                    } else {
-                        // Legacy/Simple Mode (Just Points, No Activity Log)
-                        await tx.user.update({
-                            where: { id: userId },
-                            data: {
-                                points: { increment: meeting.points },
-                                pointsHistory: {
-                                    create: {
-                                        amount: meeting.points,
-                                        reason: `Reunião: ${meeting.title}`,
-                                        source: 'ATTENDANCE'
+                        if (children.length > 0) {
+                            beneficiaries = children.map(c => c.id);
+                        }
+                    }
+
+                    // 3. Award Points
+                    for (const targetId of beneficiaries) {
+                        if (meeting.activityId) {
+                            // Use Activity Service (Generate Log + Points)
+                            await this.activitiesService.awardPoints({
+                                userId: targetId,
+                                activityId: meeting.activityId
+                            });
+                        } else {
+                            // Legacy/Simple Mode (Just Points, No Activity Log)
+                            await tx.user.update({
+                                where: { id: targetId },
+                                data: {
+                                    points: { increment: meeting.points },
+                                    pointsHistory: {
+                                        create: {
+                                            amount: meeting.points,
+                                            reason: meeting.type === 'PARENTS' && targetId !== userId
+                                                ? `Presença do Responsável na Reunião: ${meeting.title}`
+                                                : `Reunião: ${meeting.title}`,
+                                            source: 'ATTENDANCE'
+                                        }
                                     }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }
 
                     results.push(userId);

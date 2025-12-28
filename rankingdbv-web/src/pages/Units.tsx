@@ -1,10 +1,12 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Plus, Pencil, Trash2, Users, CheckSquare } from 'lucide-react';
 import { Modal } from '../components/Modal';
+import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { toast } from 'sonner';
 
 interface Unit {
     id: string;
@@ -33,6 +35,8 @@ function UnitModal({
     toggleSelection,
     counselors,
     members,
+    unitMap,
+    editingUnitId,
     handleSubmit,
     isSaving
 }: any) {
@@ -100,20 +104,43 @@ function UnitModal({
                                 <p className="text-xs text-slate-400 italic">Nenhum membro disponível.</p>
                             ) : (
                                 <div className="space-y-1">
-                                    {members.map((u: any) => (
-                                        <label key={u.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer border transition-colors ${selectedMemberIds.has(u.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-transparent hover:bg-slate-50'}`}>
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedMemberIds.has(u.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>
-                                                {selectedMemberIds.has(u.id) && <CheckSquare className="w-3.5 h-3.5 text-white" />}
-                                            </div>
-                                            <span className="text-sm text-slate-700">{u.name}</span>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedMemberIds.has(u.id)}
-                                                onChange={() => toggleSelection(u.id)}
-                                                className="hidden"
-                                            />
-                                        </label>
-                                    ))}
+                                    {members.map((u: any) => {
+                                        const currentUnitName = u.unitId ? unitMap[u.unitId] : null;
+                                        // Unavailable if in a unit AND that unit is NOT the one we are currently editing
+                                        const isUnavailable = u.unitId && u.unitId !== editingUnitId;
+
+                                        return (
+                                            <label
+                                                key={u.id}
+                                                className={`flex items-center gap-3 p-2 rounded-lg border transition-colors 
+                                                    ${isUnavailable ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-100' :
+                                                        selectedMemberIds.has(u.id) ? 'bg-blue-50 border-blue-200 cursor-pointer' : 'bg-white border-transparent hover:bg-slate-50 cursor-pointer'
+                                                    }`}
+                                            >
+                                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors 
+                                                    ${isUnavailable ? 'bg-slate-200 border-slate-300' :
+                                                        selectedMemberIds.has(u.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'
+                                                    }`}>
+                                                    {selectedMemberIds.has(u.id) && <CheckSquare className="w-3.5 h-3.5 text-white" />}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className={`text-sm ${isUnavailable ? 'text-slate-400' : 'text-slate-700'}`}>{u.name}</span>
+                                                    {currentUnitName && (
+                                                        <span className="text-[10px] text-orange-500 font-medium">
+                                                            {currentUnitName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedMemberIds.has(u.id)}
+                                                    onChange={() => !isUnavailable && toggleSelection(u.id)}
+                                                    disabled={isUnavailable}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -141,6 +168,10 @@ function UnitModal({
     );
 }
 
+// Firestore Imports moved to top
+
+// ... (UnitModal component remains same, but I need to make sure I don't break it)
+
 export function Units() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -152,70 +183,144 @@ export function Units() {
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'info' | 'counselors' | 'members'>('info');
 
-    // Fetch Units
-    const { data: units = [], isLoading } = useQuery({
-        queryKey: ['units', user?.clubId],
-        queryFn: async () => {
-            if (!user?.clubId) return [];
-            const response = await api.get(`/units/club/${user.clubId}`);
-            return response.data;
-        },
-        enabled: !!user?.clubId
-    });
-
-    // Fetch Users (for assignment)
+    // Fetch Users FIRST (needed for counts and assignment)
     const { data: users = [] } = useQuery<User[]>({
         queryKey: ['users', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return [];
-            const response = await api.get('/users');
-            return response.data;
+            const q = query(collection(db, 'users'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         },
         enabled: !!user?.clubId
     });
 
+    // Fetch Units
+    const { data: rawUnits = [], isLoading } = useQuery({
+        queryKey: ['units', user?.clubId],
+        queryFn: async () => {
+            if (!user?.clubId) return [];
+            const q = query(collection(db, 'units'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
+        },
+        enabled: !!user?.clubId
+    });
+
+    // Derive Units with Counts
+    const units = useMemo(() => {
+        return rawUnits.map(unit => ({
+            ...unit,
+            _count: {
+                members: users.filter(u => u.unitId === unit.id).length
+            }
+        }));
+    }, [rawUnits, users]);
+
+
     const counselors = useMemo(() => users.filter(u => ['COUNSELOR', 'CONSELHEIRO', 'INSTRUCTOR', 'INSTRUTOR'].includes(u.role)), [users]);
     const members = useMemo(() => users.filter(u => !['COUNSELOR', 'CONSELHEIRO', 'INSTRUCTOR', 'INSTRUTOR', 'OWNER', 'Admin', 'ADMIN'].includes(u.role)), [users]);
 
+    const unitMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        rawUnits.forEach((u: Unit) => map[u.id] = u.name);
+        return map;
+    }, [rawUnits]);
+
     // Create Unit
     const createUnitMutation = useMutation({
-        mutationFn: async (data: { name: string, clubId: string }) => {
-            return api.post('/units', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['units'] });
-            closeModal();
-            alert('Unidade criada com sucesso!');
-        },
-        onError: (e: any) => alert('Erro ao criar unidade: ' + (e.response?.data?.message || e.message))
-    });
+        mutationFn: async (data: { name: string, clubId: string, members?: string[] }) => {
+            const batch = writeBatch(db);
 
-    // Update Unit
-    const updateUnitMutation = useMutation({
-        mutationFn: async (data: { id: string, name: string, members: string[] }) => {
-            return api.patch(`/units/${data.id}`, {
+            // 1. Create Unit
+            const unitRef = doc(collection(db, 'units'));
+            batch.set(unitRef, {
                 name: data.name,
-                members: data.members
+                clubId: data.clubId,
+                createdAt: new Date().toISOString()
             });
+
+            // 2. Assign Members
+            if (data.members && data.members.length > 0) {
+                data.members.forEach(memberId => {
+                    const userRef = doc(db, 'users', memberId);
+                    batch.update(userRef, { unitId: unitRef.id });
+                });
+            }
+
+            await batch.commit();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['units'] });
             queryClient.invalidateQueries({ queryKey: ['users'] });
             closeModal();
-            alert('Unidade atualizada com sucesso!');
+            toast.success('Unidade criada com sucesso!');
         },
-        onError: (e: any) => alert('Erro ao atualizar unidade: ' + (e.response?.data?.message || e.message))
+        onError: () => toast.error('Erro ao criar unidade.')
+    });
+
+    // Update Unit
+    const updateUnitMutation = useMutation({
+        mutationFn: async (data: { id: string, name: string, members: string[] }) => {
+            const batch = writeBatch(db);
+            const unitRef = doc(db, 'units', data.id);
+
+            // 1. Update Name
+            batch.update(unitRef, { name: data.name });
+
+            // 2. Update Members
+            // Find users currently in this unit but NOT in new selection -> Remove them
+            const currentMembers = users.filter(u => u.unitId === data.id).map(u => u.id);
+            const newMembers = data.members;
+
+            const toRemove = currentMembers.filter(id => !newMembers.includes(id));
+            const toAdd = newMembers.filter(id => !currentMembers.includes(id));
+
+            toRemove.forEach(id => {
+                const userRef = doc(db, 'users', id);
+                batch.update(userRef, { unitId: null });
+            });
+
+            toAdd.forEach(id => {
+                const userRef = doc(db, 'users', id);
+                batch.update(userRef, { unitId: data.id });
+            });
+
+            await batch.commit();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['units'] });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            closeModal();
+            toast.success('Unidade atualizada com sucesso!');
+        },
+        onError: () => toast.error('Erro ao atualizar unidade.')
     });
 
     // Delete Unit
     const deleteUnitMutation = useMutation({
         mutationFn: async (id: string) => {
-            return api.delete(`/units/${id}`);
+            const batch = writeBatch(db);
+            const unitRef = doc(db, 'units', id);
+
+            // 1. Delete Unit
+            batch.delete(unitRef);
+
+            // 2. Remove Unit from Members
+            const unitMembers = users.filter(u => u.unitId === id);
+            unitMembers.forEach(u => {
+                const userRef = doc(db, 'users', u.id);
+                batch.update(userRef, { unitId: null });
+            });
+
+            await batch.commit();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['units'] });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success('Unidade excluída.');
         },
-        onError: () => alert('Erro ao excluir unidade.')
+        onError: () => toast.error('Erro ao excluir unidade.')
     });
 
     const handleDelete = async (id: string) => {
@@ -275,7 +380,8 @@ export function Units() {
         } else {
             createUnitMutation.mutate({
                 name: unitName,
-                clubId: user.clubId
+                clubId: user.clubId,
+                members: Array.from(selectedMemberIds)
             });
         }
     };
@@ -301,7 +407,7 @@ export function Units() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {units.map((unit: any) => (
+                {[...units].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((unit: any) => (
                     <div key={unit.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
@@ -370,6 +476,8 @@ export function Units() {
                 toggleSelection={toggleSelection}
                 counselors={counselors}
                 members={members}
+                unitMap={unitMap}
+                editingUnitId={editingUnit?.id}
                 handleSubmit={handleSubmit}
                 isSaving={createUnitMutation.isPending || updateUnitMutation.isPending}
             />

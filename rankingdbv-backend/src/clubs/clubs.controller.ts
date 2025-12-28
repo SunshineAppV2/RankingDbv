@@ -29,7 +29,7 @@ export class ClubsController {
     @UseGuards(JwtAuthGuard)
     @Get('dashboard')
     getDashboard(@Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.role !== 'MASTER') throw new Error('Acesso negado');
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.role !== 'MASTER') throw new Error('Acesso negado');
         return this.clubsService.getAllClubsDetailed();
     }
 
@@ -58,14 +58,14 @@ export class ClubsController {
     @UseGuards(JwtAuthGuard)
     @Patch('hierarchy/rename')
     async renameHierarchyNode(@Body() body: { level: 'union' | 'mission' | 'region', oldName: string, newName: string }, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com') throw new Error('Acesso negado');
+        if (req.user.email !== 'master@cantinhodbv.com') throw new Error('Acesso negado');
         return this.clubsService.renameHierarchyNode(body.level, body.oldName, body.newName);
     }
 
     @UseGuards(JwtAuthGuard)
     @Delete('hierarchy')
     async deleteHierarchyNode(@Query('level') level: 'union' | 'mission' | 'region', @Query('name') name: string, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com') throw new Error('Acesso negado');
+        if (req.user.email !== 'master@cantinhodbv.com') throw new Error('Acesso negado');
         return this.clubsService.deleteHierarchyNode(level, name);
     }
 
@@ -73,13 +73,22 @@ export class ClubsController {
     @Patch(':id/subscription')
     async updateSubscription(@Param('id') id: string, @Body() body: any, @Request() req) {
         console.log('Update Subscription Request:', { id, body, user: req.user.email });
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.role !== 'MASTER') throw new Error('Acesso negado. Apenas o Master pode gerenciar assinaturas.');
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.role !== 'MASTER') throw new Error('Acesso negado. Apenas o Master pode gerenciar assinaturas.');
         try {
             return await this.clubsService.updateSubscription(id, body);
         } catch (e) {
             console.error('Error updating subscription:', e);
             throw e;
         }
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/send-payment-info')
+    async sendPaymentInfo(@Param('id') id: string, @Body() body: { message?: string }, @Request() req) {
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.role !== 'MASTER') {
+            throw new Error('Acesso negado.');
+        }
+        return this.clubsService.sendPaymentInfo(id, body.message);
     }
 
     @UseGuards(JwtAuthGuard)

@@ -53,7 +53,7 @@ export class UsersService {
       // Also restrict by Club
       if (currentUser.clubId) where.clubId = currentUser.clubId;
 
-    } else if (currentUser?.clubId && currentUser.email !== 'master@rankingdbv.com') {
+    } else if (currentUser?.clubId && currentUser.email !== 'master@cantinhodbv.com') {
       where.clubId = currentUser.clubId;
     }
 
@@ -135,6 +135,10 @@ export class UsersService {
         recentSurgery: true,
         disabilities: true,
         healthNotes: true,
+        parentId: true,
+        children: {
+          select: { id: true }
+        }
       }
     });
 
@@ -155,7 +159,7 @@ export class UsersService {
       isActive: true
     };
 
-    const isMaster = currentUser?.email?.toLowerCase() === 'master@rankingdbv.com';
+    const isMaster = currentUser?.email?.toLowerCase() === 'master@cantinhodbv.com';
 
     if (!isMaster) {
       if (!currentUser?.clubId) {
@@ -209,7 +213,7 @@ export class UsersService {
 
     // Strict ACL Check if context is provided
     if (currentUser) {
-      if (currentUser.email === 'master@rankingdbv.com') return user; // Master sees all
+      if (currentUser.email === 'master@cantinhodbv.com') return user; // Master sees all
       if (user.id === currentUser.userId) return user; // Self sees self
 
       // Club Director
@@ -248,13 +252,13 @@ export class UsersService {
 
   // Cria um novo usuário
   async create(createUserDto: any): Promise<User> {
-    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, region, mission, union, ...rest } = createUserDto; // Strip extra fields
+    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, region, mission, union, childrenIds, ...rest } = createUserDto; // Strip extra fields
 
     // 1. Check Subscription Limits
     if (clubId) {
       const club = await this.prisma.club.findUnique({
         where: { id: clubId },
-        include: { _count: { select: { users: true } } }
+        // include: { _count: { select: { users: true } } } // Old logic
       });
 
       if (club) {
@@ -264,15 +268,22 @@ export class UsersService {
         // Check BILLING Status first (Robust Dynamic Check)
         await this.clubsService.checkWriteAccess(clubId);
 
-        // Check Member Limit (skip filter for OWNER creation if it's the first one, but generally OWNER counts)
-        // If role is OWNER, maybe we skip if count is 0? Generally, just check.
-        const currentCount = club._count.users;
+        // Calculate PAID/Liable Members (Everyone except PARENTS/MASTER)
+        const paidCount = await this.prisma.user.count({
+          where: {
+            clubId,
+            role: { notIn: ['PARENT', 'MASTER'] },
+            isActive: true
+          }
+        });
+
         const limit = clubData.memberLimit;
 
-        // Optional: Allow tiny margin? No, strict is better for now.
-        if (currentCount >= limit) {
-          // Check if user being created is an OWNER/Admin fixing things? No, they can't add more people.
-          throw new UnauthorizedException(`Limite do plano atingido (${currentCount}/${limit}). Faça upgrade do plano.`);
+        // Check Limit if creating a NON-PARENT
+        if (rest.role !== 'PARENT') {
+          if (paidCount >= limit) {
+            throw new UnauthorizedException(`Limite do plano atingido (${paidCount}/${limit} membros ativos). Faça upgrade para adicionar mais.`);
+          }
         }
       }
     }
@@ -288,6 +299,10 @@ export class UsersService {
       if (isNaN(validBirthDate.getTime())) validBirthDate = undefined;
     }
 
+    const childrenConnect = childrenIds && Array.isArray(childrenIds)
+      ? childrenIds.map((id: string) => ({ id }))
+      : [];
+
     return this.prisma.user.create({
       data: {
         ...rest,
@@ -295,7 +310,8 @@ export class UsersService {
         dbvClass: validDbvClass as any, // Cast to any or correct Enum type if imported
         schoolShift: schoolShift, // Explicitly add it back
         club: clubId ? { connect: { id: clubId } } : undefined,
-        unit: validUnitId ? { connect: { id: validUnitId } } : undefined
+        unit: validUnitId ? { connect: { id: validUnitId } } : undefined,
+        children: childrenConnect.length > 0 ? { connect: childrenConnect } : undefined
       },
     });
   }
@@ -332,13 +348,8 @@ export class UsersService {
       id: _id, // exclude id from data
       createdAt,
       updatedAt,
-      pointsHistory, // extract but allow to be passed if structurally correct in ...rest if we wanted, but here we extracted it so it's NOT in rest.
-      // Wait, we WANT it in rest if we want to save it.
-      // But usually DTOs coming from HTTP don't have it.
-      // The issue is internal calls.
-      // Internal calls pass `pointsHistory` inside `updateUserDto` (which is typed as UpdateUserDto but might have extras casted)
-      // If we extract it here, it won't be in `rest`.
-      // We need to put it back into `dataToUpdate` if it exists.
+      pointsHistory,
+      childrenIds, // Extract childrenIds
       ...rest
     } = updateUserDto as any;
 
@@ -347,7 +358,7 @@ export class UsersService {
       const userToUpdate = await this.prisma.user.findUnique({ where: { id } });
       if (!userToUpdate) throw new Error('Usuário não encontrado');
 
-      const isMaster = currentUser.email === 'master@rankingdbv.com';
+      const isMaster = currentUser.email === 'master@cantinhodbv.com';
       const isSelf = currentUser.userId === id;
       const isClubAdmin = ['OWNER', 'ADMIN', 'DIRECTOR'].includes(currentUser.role) && userToUpdate.clubId === currentUser.clubId;
 
@@ -364,17 +375,16 @@ export class UsersService {
 
     if (dataToUpdate.role === 'OWNER' || dataToUpdate.role === 'REGIONAL') {
       // Allow if Master
-      const isMaster = currentUser?.email === 'master@rankingdbv.com';
+      const isMaster = currentUser?.email === 'master@cantinhodbv.com';
       if (!isMaster) {
-        // If not master, revert to PATHFINDER or throw error? 
-        // Logic says to prevent assignment.
-        // Original code reverted to PATHFINDER for OWNER.
-        // I will do the same or keep existing role?
-        // Let's assume preventing escalation. 
-        // But if I update a user who Is OWNER/REGIONAL but I am not changing role, this block won't trigger if role is not in dataToUpdate?
-        // dataToUpdate has what was passed.
-        // If passed, revert.
-        dataToUpdate.role = 'PATHFINDER';
+        // If not Master, check if we are simply maintaining the existing role
+        const userToUpdate = await this.prisma.user.findUnique({ where: { id }, select: { role: true } });
+        if (userToUpdate && userToUpdate.role === dataToUpdate.role) {
+          // Allow keeping the same role
+        } else {
+          // Prevent escalation to OWNER/REGIONAL
+          dataToUpdate.role = 'PATHFINDER';
+        }
       }
     }
 
@@ -417,6 +427,17 @@ export class UsersService {
           };
         }
       }
+    }
+
+    if (childrenIds && Array.isArray(childrenIds)) {
+      // Create connection objects
+      const childrenConnect = childrenIds.map((cid: string) => ({ id: cid }));
+
+      // Update data with children connection
+      // We use 'set' to replace existing children with the new list
+      dataToUpdate.children = {
+        set: childrenConnect
+      };
     }
 
     try {
@@ -488,7 +509,7 @@ export class UsersService {
     if (!user) throw new Error('Usuário não encontrado');
 
     if (currentUser) {
-      const isMaster = currentUser.email === 'master@rankingdbv.com';
+      const isMaster = currentUser.email === 'master@cantinhodbv.com';
       const isClubAdmin = ['OWNER', 'ADMIN', 'DIRECTOR'].includes(currentUser.role) && user.clubId === currentUser.clubId;
 
       if (!isMaster && !isClubAdmin) {

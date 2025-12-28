@@ -94,7 +94,7 @@ export function SecretaryMinutesList({ onEdit, onNew }: SecretaryMinutesListProp
             doc.setPage(i);
             doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text(`Gerado pelo Sistema Ranking DBV em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 105, 290, { align: 'center' });
+            doc.text(`Gerado pelo Sistema Cantinho DBV em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 105, 290, { align: 'center' });
         }
 
         doc.save(`ATA_${minute.date.split('T')[0]}.pdf`);

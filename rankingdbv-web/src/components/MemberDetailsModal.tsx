@@ -3,6 +3,7 @@ import { User, Mail, Award, BookOpen } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/axios';
 import { MemberRequirementsList } from './MemberRequirementsList';
+import { ROLE_TRANSLATIONS } from '../pages/members/types';
 
 interface Member {
     id: string;
@@ -73,7 +74,7 @@ export function MemberDetailsModal({ isOpen, onClose, member }: MemberDetailsMod
                         </div>
                         <div className="flex gap-2 mt-2">
                             <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                                {member.role}
+                                {ROLE_TRANSLATIONS[member.role] || member.role}
                             </span>
                             {member.dbvClass && (
                                 <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded-full">

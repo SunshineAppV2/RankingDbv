@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { api } from '../lib/axios';
+﻿
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Settings, Server } from 'lucide-react';
 import { Modal } from '../components/Modal';
@@ -17,7 +17,7 @@ export function Login() {
 
   // Server Config State
   const [showSettings, setShowSettings] = useState(false);
-  const [serverUrl, setServerUrl] = useState(localStorage.getItem('api_url') || 'http://192.168.1.67:3000');
+  const [serverUrl, setServerUrl] = useState(localStorage.getItem('api_url') || `http://${window.location.hostname}:3000`);
 
   const handleSaveServer = () => {
     localStorage.setItem('api_url', serverUrl);
@@ -35,27 +35,21 @@ export function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/login', {
-        email,
-        password
-      });
-
-      const { access_token, user } = response.data;
-      login(access_token, user);
-
-      toast.success(`Login realizado com sucesso! Bem-vindo, ${user.name}`);
+      await login(email, password);
+      toast.success(`Login realizado com sucesso!`);
       navigate('/dashboard');
 
     } catch (err: any) {
       console.error(err);
-      if (err.response?.data?.message === 'O acesso deste clube está suspenso. Contate a direção.') {
-        setIsSuspended(true);
-      } else if (err.response?.status === 401) {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         toast.error('Email ou senha incorretos.');
         setError('Email ou senha incorretos.');
+      } else if (err.code === 'auth/too-many-requests') {
+        toast.error('Muitas tentativas falhas. Tente novamente mais tarde.');
+        setError('Muitas tentativas. Aguarde.');
       } else {
-        toast.error('Erro ao conectar com o servidor.');
-        setError(`Erro de Conexão: ${err.message || 'Sem detalhes'}`);
+        toast.error('Erro ao realizar login.');
+        setError(`Erro: ${err.message}`);
       }
     } finally {
       setLoading(false);

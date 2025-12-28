@@ -24,6 +24,7 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { ROLE_TRANSLATIONS } from '../pages/members/types';
 import { NotificationBell } from '../components/NotificationBell';
 import { HelpButton } from '../components/HelpButton';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -69,7 +70,7 @@ export function DashboardLayout() {
 
     // Auto-open Config for Master
     useEffect(() => {
-        if (user?.email === 'master@rankingdbv.com' || user?.role === 'MASTER') {
+        if (user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') {
             setSectionsOpen(prev => ({ ...prev, config: true }));
         }
     }, [user]);
@@ -91,7 +92,7 @@ export function DashboardLayout() {
 
     const hasAccess = (moduleKey: string) => {
         if (!user) return false;
-        if (['OWNER', 'ADMIN'].includes(user.role)) return true; // Master/Admin always has access
+        if (['OWNER', 'ADMIN', 'MASTER'].includes(user.role)) return true; // Master/Admin always has access
 
         const perms = clubData?.settings?.permissions || {
             // Fallback Defaults if not configured
@@ -126,9 +127,7 @@ export function DashboardLayout() {
       `}>
                 <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
                     <Link to="/dashboard" className="group">
-                        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-blue-500 transition-all">
-                            Cantinho DBV
-                        </h1>
+                        <img src="/logo.png" alt="Cantinho DBV" className="h-10 w-auto object-contain" />
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Início / Home</p>
                     </Link>
                     <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
@@ -255,7 +254,7 @@ export function DashboardLayout() {
                                                 <ListChecks className="w-4 h-4" />
                                                 <span>Meus Requisitos</span>
                                             </Link>
-                                            {['PARENT', 'OWNER', 'ADMIN'].includes(user?.role || '') && (
+                                            {['PARENT', 'OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '') && (
                                                 <Link
                                                     to="/dashboard/family"
                                                     className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
@@ -278,7 +277,7 @@ export function DashboardLayout() {
                             )}
 
                             {/* --- GESTÃO (ADMIN) --- */}
-                            {!isClubOverdue && (['OWNER', 'ADMIN'].includes(user?.role || '') ||
+                            {!isClubOverdue && (['OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '') ||
                                 hasAccess('MEMBERS') || hasAccess('CLASSES') || hasAccess('ATTENDANCE') || hasAccess('EVENTS') || hasAccess('TREASURY') || hasAccess('SECRETARY') || hasAccess('APPROVALS')
                             ) && (
                                     <div className="space-y-1">
@@ -464,14 +463,35 @@ export function DashboardLayout() {
                                     {sectionsOpen.config && (
                                         <div className="space-y-1">
                                             {/* Master Link */}
-                                            {(user?.email === 'master@rankingdbv.com' || user?.role === 'MASTER') && (
-                                                <Link
-                                                    to="/dashboard/hierarchy"
-                                                    className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                >
-                                                    <Building2 className="h-4 w-4" />
-                                                    <span className="font-medium">Gerenciar Assinatura</span>
-                                                </Link>
+                                            {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER' || user?.role === 'OWNER') && (
+                                                <>
+                                                    <Link
+                                                        to="/dashboard/system-messages"
+                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
+                                                    >
+                                                        <AlertTriangle className="h-4 w-4" />
+                                                        <span className="font-medium">Mensagens do Sistema</span>
+                                                    </Link>
+                                                    {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
+                                                        <Link
+                                                            to="/dashboard/hierarchy"
+                                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
+                                                        >
+                                                            <Building2 className="h-4 w-4" />
+                                                            <span className="font-medium">Gerenciar Assinatura</span>
+                                                        </Link>
+                                                    )}
+
+                                                    {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
+                                                        <Link
+                                                            to="/dashboard/master-treasury"
+                                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
+                                                        >
+                                                            <DollarSign className="h-4 w-4" />
+                                                            <span className="font-medium">Tesouraria Master</span>
+                                                        </Link>
+                                                    )}
+                                                </>
                                             )}
 
                                             <Link
@@ -575,7 +595,7 @@ export function DashboardLayout() {
                             </div>
                             <div className="hidden sm:block text-left">
                                 <p className="text-sm font-semibold text-slate-700 leading-none">{user?.name || 'Usuário'}</p>
-                                <p className="text-[10px] text-slate-500 font-medium mt-0.5 capitalize">{user?.role?.toLowerCase() || 'Membro'}</p>
+                                <p className="text-[10px] text-slate-500 font-medium mt-0.5 capitalize">{ROLE_TRANSLATIONS[user?.role || '']?.toLowerCase() || user?.role?.toLowerCase() || 'Membro'}</p>
                             </div>
                         </Link>
                     </div>

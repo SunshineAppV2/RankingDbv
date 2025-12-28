@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Req, UseGuards, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Req, UseGuards, Delete, Patch } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('store')
@@ -18,6 +19,11 @@ export class StoreController {
         return this.storeService.createProduct(req.user.clubId, body);
     }
 
+    @Patch('products/:id')
+    updateProduct(@Param('id') id: string, @Body() body: UpdateProductDto) {
+        return this.storeService.updateProduct(id, body);
+    }
+
     @Delete('products/:id')
     deleteProduct(@Param('id') id: string) {
         return this.storeService.deleteProduct(id);
@@ -25,11 +31,34 @@ export class StoreController {
 
     @Post('buy/:productId')
     buyProduct(@Req() req, @Param('productId') productId: string) {
-        return this.storeService.buyProduct(req.user.id, productId);
+        // Fix: JwtStrategy returns userId, not id
+        console.log('Buy Request User:', req.user);
+        return this.storeService.buyProduct(req.user.userId, productId);
     }
 
-    @Get('my-purchases')
+    @Get('inventory') // Existing endpoint for user inventory
     getMyPurchases(@Req() req) {
         return this.storeService.getMyPurchases(req.user.id);
+    }
+
+    @Get('products/:clubId') // Fix missing parameter route in FE vs BE
+    listProductsByClub(@Param('clubId') clubId: string) {
+        return this.storeService.listProducts(clubId);
+    }
+
+    // Admin Routes
+    @Get('admin/purchases')
+    getClubPurchases(@Req() req) {
+        return this.storeService.getClubPurchases(req.user.clubId);
+    }
+
+    @Post('admin/deliver/:id')
+    markDelivered(@Param('id') id: string) {
+        return this.storeService.markDelivered(id);
+    }
+
+    @Post('admin/refund/:id')
+    refundPurchase(@Param('id') id: string) {
+        return this.storeService.refundPurchase(id);
     }
 }

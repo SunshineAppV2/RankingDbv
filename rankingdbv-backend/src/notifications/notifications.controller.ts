@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Param, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -28,5 +28,14 @@ export class NotificationsController {
     @Patch('read-all')
     markAllAsRead(@Request() req) {
         return this.notificationsService.markAllAsRead(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('global')
+    async sendGlobal(@Request() req, @Body() body: { title: string; message: string; type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' }) {
+        if (req.user.role !== 'MASTER' && req.user.email !== 'master@cantinhodbv.com' && req.user.role !== 'OWNER') {
+            throw new UnauthorizedException('Permissão negada.');
+        }
+        return this.notificationsService.sendGlobal(body.title, body.message, body.type);
     }
 }

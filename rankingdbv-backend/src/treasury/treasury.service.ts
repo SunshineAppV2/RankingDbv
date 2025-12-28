@@ -128,10 +128,39 @@ export class TreasuryService {
     }
 
     async findAll(clubId: string) {
-        return this.prisma.transaction.findMany({
+        const transactions = await this.prisma.transaction.findMany({
             where: { clubId },
             include: { payer: { select: { id: true, name: true } } },
             orderBy: { date: 'desc' }
+        });
+
+        // Custom Sort: WAITING > PENDING > COMPLETED > CANCELED
+        const statusPriority = {
+            'WAITING_APPROVAL': 0,
+            'PENDING': 1,
+            'COMPLETED': 2,
+            'CANCELED': 3
+        };
+
+        return transactions.sort((a, b) => {
+            const priorityA = statusPriority[a.status] ?? 99;
+            const priorityB = statusPriority[b.status] ?? 99;
+
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+
+            // If PENDING, Sort by Due Date ASC (Vencidos/Antigos primeiro)
+            if (a.status === 'PENDING') {
+                const dateA = a.dueDate ? new Date(a.dueDate).getTime() : new Date(a.date).getTime();
+                const dateB = b.dueDate ? new Date(b.dueDate).getTime() : new Date(b.date).getTime();
+                return dateA - dateB; // ASC
+            }
+
+            // For COMPLETED/CANCELED/WAITING, keep Date DESC (Mais recentes primeiro)
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return dateB - dateA; // DESC
         });
     }
 

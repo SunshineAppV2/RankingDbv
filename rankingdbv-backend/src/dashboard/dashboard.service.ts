@@ -12,10 +12,12 @@ export class DashboardService {
         const firstDayOfMonth = startOfMonth(now);
         const lastDayOfMonth = endOfMonth(now);
 
-        // 1. Active Members (Assuming all in club are active for now)
+        // 1. Active Members (Excluding Parents/Free/Master)
         const activeMembers = await this.prisma.user.count({
             where: {
                 clubId,
+                role: { notIn: ['PARENT', 'MASTER'] },
+                isActive: true
             },
         });
 

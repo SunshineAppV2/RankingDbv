@@ -24,13 +24,13 @@ async function main() {
 
     // 2. Create Master User
     const user = await prisma.user.upsert({
-        where: { email: 'master@rankingdbv.com' },
+        where: { email: 'master@cantinhodbv.com' },
         update: {
             role: 'OWNER', // Ensure role is Owner
             clubId: club.id
         },
         create: {
-            email: 'master@rankingdbv.com',
+            email: 'master@cantinhodbv.com',
             name: 'Master Admin',
             password,
             role: 'OWNER',
@@ -56,24 +56,26 @@ async function main() {
 
     // 4. Create Parent
     const parent = await prisma.user.upsert({
-        where: { email: 'pai@rankingdbv.com' },
+        where: { email: 'pai@cantinhodbv.com' },
         update: {},
         create: {
-            email: 'pai@rankingdbv.com',
-            name: 'Pai Responsável',
+            email: 'pai@cantinhodbv.com',
+            name: 'PAI RESPONSÁVEL',
             password,
             role: 'PARENT',
             clubId: club.id
         }
     });
 
-    // 5. Create Child (Pathfinder)
+    // 5. Create Child (Pathfinder) -> Renaming to standard
     const child = await prisma.user.upsert({
-        where: { email: 'filho@rankingdbv.com' },
-        update: {},
+        where: { email: 'filho@cantinhodbv.com' },
+        update: {
+            name: 'DESBRAVADOR FILHO'
+        },
         create: {
-            email: 'filho@rankingdbv.com',
-            name: 'Filho Desbravador',
+            email: 'filho@cantinhodbv.com',
+            name: 'DESBRAVADOR FILHO',
             password,
             role: 'PATHFINDER',
             clubId: club.id,
@@ -105,6 +107,67 @@ async function main() {
                 dueDate: new Date(new Date().setDate(new Date().getDate() + 10)) // Due in 10 days
             }
         });
+    }
+
+    // --- NEW SEED LOGIC: 10 DESBRAVADORES ---
+    console.log('Seeding 10 Extra Pathfinders for Test Club...');
+
+    // Create Delta Unit
+    const unit2 = await prisma.unit.upsert({
+        where: { id: 'default-unit-delta' }, // Simple ID strategy for seed
+        update: {},
+        create: {
+            name: 'Unidade Delta',
+            clubId: club.id
+        }
+    }).catch(async () => {
+        const existing = await prisma.unit.findFirst({ where: { name: 'Unidade Delta', clubId: club.id } });
+        if (existing) return existing;
+        return prisma.unit.create({ data: { name: 'Unidade Delta', clubId: club.id } });
+    });
+
+    const extraDbvs = [
+        { first: 'GABRIEL', sex: 'M' },
+        { first: 'LUCAS', sex: 'M' },
+        { first: 'MATHEUS', sex: 'M' },
+        { first: 'PEDRO', sex: 'M' },
+        { first: 'RAFAEL', sex: 'M' },
+        { first: 'ANA', sex: 'F' },
+        { first: 'BEATRIZ', sex: 'F' },
+        { first: 'JULIA', sex: 'F' },
+        { first: 'MARIA', sex: 'F' },
+        { first: 'SOPHIA', sex: 'F' }
+    ];
+
+    for (let i = 0; i < extraDbvs.length; i++) {
+        const p = extraDbvs[i];
+        const prefix = p.sex === 'M' ? 'DESBRAVADOR' : 'DESBRAVADORA';
+        const fullName = `${prefix} ${p.first}`;
+        const email = `${p.first.toLowerCase()}@clubeteste.com`;
+
+        // Distribute: Evens -> Alpha, Odds -> Delta
+        const unitId = i % 2 === 0 ? unit1.id : unit2.id;
+
+        await prisma.user.upsert({
+            where: { email },
+            update: {
+                name: fullName,
+                unitId: unitId,
+                role: 'PATHFINDER',
+                clubId: club.id,
+                sex: p.sex // Assuming sex field exists, otherwise ignore or check schema
+            },
+            create: {
+                email,
+                name: fullName,
+                password, // Hash 123456
+                role: 'PATHFINDER',
+                clubId: club.id,
+                unitId: unitId,
+                sex: p.sex
+            }
+        });
+        console.log(`Upserted: ${fullName} (${email}) -> Unit: ${i % 2 === 0 ? 'Alpha' : 'Delta'}`);
     }
 
     // 7. Create Demo Requirement and Assign to Child

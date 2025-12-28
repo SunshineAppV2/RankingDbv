@@ -25,7 +25,8 @@ export function ClubSubscriptionModal({ club, onClose, onSave }: ClubSubscriptio
         memberLimit: 30,
         subscriptionStatus: 'TRIAL',
         nextBillingDate: '',
-        gracePeriodDays: 5
+        gracePeriodDays: 5,
+        lastPaymentAmount: ''
     });
 
     const [loading, setLoading] = useState(false);
@@ -40,7 +41,8 @@ export function ClubSubscriptionModal({ club, onClose, onSave }: ClubSubscriptio
                     memberLimit: data.memberLimit || 30,
                     subscriptionStatus: data.subscriptionStatus || 'TRIAL',
                     nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate).toISOString().split('T')[0] : '',
-                    gracePeriodDays: data.gracePeriodDays || 5
+                    gracePeriodDays: data.gracePeriodDays || 5,
+                    lastPaymentAmount: ''
                 });
             }).catch(() => toast.error('Erro ao carregar dados do clube'));
         }
@@ -130,34 +132,54 @@ export function ClubSubscriptionModal({ club, onClose, onSave }: ClubSubscriptio
                         onChange={e => setFormData({ ...formData, nextBillingDate: e.target.value })}
                         className="w-full px-3 py-2 border rounded"
                     />
-                     <div className="flex gap-2 mt-2">
-                        <button 
-                            className="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200"
+                    <div className="flex gap-2 mt-2">
+                        <button
+                            className="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 border border-slate-300"
                             onClick={() => {
-                                const d = new Date();
-                                d.setMonth(d.getMonth() + 1);
-                                setFormData({ ...formData, nextBillingDate: d.toISOString().split('T')[0] });
+                                // If date exists, use it. If not, use today.
+                                const baseDate = formData.nextBillingDate ? new Date(formData.nextBillingDate) : new Date();
+                                // Add 1 month to the correct day
+                                baseDate.setMonth(baseDate.getMonth() + 1);
+                                setFormData({ ...formData, nextBillingDate: baseDate.toISOString().split('T')[0], subscriptionStatus: 'ACTIVE' });
                             }}
                         >
-                            +30 Dias
+                            Renovar (+1 Mês)
                         </button>
-                        <button 
-                            className="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200"
+                        <button
+                            className="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 border border-slate-300"
                             onClick={() => {
-                                const d = new Date();
-                                d.setFullYear(d.getFullYear() + 1);
-                                setFormData({ ...formData, nextBillingDate: d.toISOString().split('T')[0] });
+                                // If date exists, use it. If not, use today.
+                                const baseDate = formData.nextBillingDate ? new Date(formData.nextBillingDate) : new Date();
+                                baseDate.setFullYear(baseDate.getFullYear() + 1);
+                                setFormData({ ...formData, nextBillingDate: baseDate.toISOString().split('T')[0], subscriptionStatus: 'ACTIVE' });
                             }}
                         >
-                            +1 Ano
+                            Renovar (+1 Ano)
                         </button>
+                    </div>
+                </div>
+
+                {/* LOG NEW PAYMENT (Auto-Treasury) */}
+                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                    <label className="block text-sm font-bold text-emerald-800 mb-1">Registrar Pagamento (Opcional)</label>
+                    <p className="text-xs text-emerald-600 mb-2">Se preenchido, lançará automaticamente uma <b>Entrada</b> na Tesouraria Master associada a este clube.</p>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">R$</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={formData.lastPaymentAmount}
+                            onChange={e => setFormData({ ...formData, lastPaymentAmount: e.target.value })}
+                            className="w-full pl-10 pr-3 py-2 border border-emerald-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none"
+                        />
                     </div>
                 </div>
 
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
                     <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
-                    <button 
-                        onClick={handleSave} 
+                    <button
+                        onClick={handleSave}
                         disabled={loading}
                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                     >

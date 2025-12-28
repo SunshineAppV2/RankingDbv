@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Plus, Users, CheckCircle, ChevronRight, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { Calendar, Plus, Users, CheckCircle, ChevronRight, ArrowLeft, FileSpreadsheet, FileText, Save } from 'lucide-react';
 import { Modal } from '../components/Modal';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, writeBatch, increment } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { toast } from 'sonner';
 
 interface Meeting {
     id: string;
@@ -11,6 +14,7 @@ interface Meeting {
     date: string;
     type: string;
     points: number;
+    details?: string;
     _count?: {
         attendances: number;
     };
@@ -29,6 +33,16 @@ export function Meetings() {
 
     // View State
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+
+    // Details State (ATA)
+    const [details, setDetails] = useState('');
+
+    // Update local details state when meeting selected
+    useEffect(() => {
+        if (selectedMeeting) {
+            setDetails(selectedMeeting.details || '');
+        }
+    }, [selectedMeeting]);
 
     // Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -50,8 +64,11 @@ export function Meetings() {
         queryKey: ['meetings', user?.clubId],
         queryFn: async () => {
             if (!user?.clubId) return [];
-            const response = await api.get(`/meetings/club/${user.clubId}`);
-            return response.data;
+            const q = query(collection(db, 'meetings'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            const meetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Meeting));
+            // Sort by date desc (client side)
+            return meetingsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         },
         enabled: !!user?.clubId && !selectedMeeting
     });
@@ -59,20 +76,70 @@ export function Meetings() {
     const { data: members = [] } = useQuery<Member[]>({
         queryKey: ['members', user?.clubId],
         queryFn: async () => {
-            const response = await api.get('/users');
-            return response.data;
+            if (!user?.clubId) return [];
+            const q = query(collection(db, 'users'), where('clubId', '==', user.clubId));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Member));
         },
         enabled: !!selectedMeeting // Only fetch when inside a meeting
     });
 
+    // --- Helpers ---
+
+    const translateRole = (role: string) => {
+        const map: Record<string, string> = {
+            'PATHFINDER': 'Desbravador',
+            'COUNSELOR': 'Conselheiro',
+            'INSTRUCTOR': 'Instrutor',
+            'DIRECTOR': 'Diretor',
+            'ADMIN': 'Admin',
+            'PARENT': 'Pai/Responsável',
+            'MASTER': 'Master',
+            'OWNER': 'Proprietário',
+            'REGIONAL': 'Regional',
+        };
+        return map[role] || role;
+    };
+
+    const filteredMembers = useMemo(() => {
+        if (!selectedMeeting) return [];
+        return members.filter(member => {
+            if (selectedMeeting.type === 'PARENTS') {
+                return member.role === 'PARENT'; // Only PARENTS for PARENTS meeting
+            }
+            // STRICT: Only PATHFINDERS for other meetings (Regular, Camp, etc)
+            // Excluding Counselors/Directors as requested
+            return member.role === 'PATHFINDER';
+        });
+    }, [members, selectedMeeting]);
+
     // --- Mutations ---
+
+    const updateMeetingMutation = useMutation({
+        mutationFn: async (data: { id: string, details: string }) => {
+            const docRef = doc(db, 'meetings', data.id);
+            await updateDoc(docRef, { details: data.details });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['meetings'] });
+            toast.success('Detalhes da reunião salvos!');
+            if (selectedMeeting) {
+                setSelectedMeeting({ ...selectedMeeting, details });
+            }
+        },
+        onError: (error: any) => {
+            console.error('Update Error:', error);
+            toast.error('Erro ao salvar detalhes.');
+        }
+    });
+
+    // Keep Import mutations on API for now or disable if backend is gone. 
+    // Assuming backend might still be used for file processing or user can accept it might break if backend is offline.
+    // For now I will leave Import as API calls but add toast error handling.
 
     const importMeetingsMutation = useMutation({
         mutationFn: async (file: File) => {
-            if (!user?.clubId) {
-                alert('Erro: Club ID não encontrado.');
-                return;
-            }
+            if (!user?.clubId) throw new Error('Club ID não encontrado.');
             const formData = new FormData();
             formData.append('file', file);
             formData.append('clubId', user.clubId);
@@ -84,12 +151,11 @@ export function Meetings() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['meetings'] });
             setIsImportModalOpen(false);
-            alert('Reuniões importadas com sucesso!');
+            toast.success('Reuniões importadas com sucesso!');
         },
         onError: (error: any) => {
             console.error('Import Error:', error);
-            const message = error.response?.data?.message || 'Erro ao importar reuniões. Verifique a planilha.';
-            alert(message);
+            toast.error(error.response?.data?.message || 'Erro ao importar reuniões.');
         }
     });
 
@@ -106,45 +172,85 @@ export function Meetings() {
             queryClient.invalidateQueries({ queryKey: ['meetings'] });
             setIsAttendanceImportOpen(false);
             const results = (data as any).data;
-            alert(`Presença importada!\nSucedidos: ${results.success}\nPulados: ${results.skipped}${results.errors?.length ? `\n\nErros:\n${results.errors.join('\n')}` : ''}`);
+            alert(`Presença importada!\nSucedidos: ${results.success}\nPulados: ${results.skipped}`);
             setSelectedMeeting(null);
         },
         onError: (error: any) => {
-            console.error('Attendance Import Error:', error);
-            const message = error.response?.data?.message || 'Erro ao importar presença. Verifique a planilha.';
-            alert(message);
+            toast.error(error.response?.data?.message || 'Erro importação.');
         }
     });
 
     const createMeetingMutation = useMutation({
         mutationFn: async (data: any) => {
-            return api.post('/meetings', { ...data, clubId: user?.clubId });
+            return await addDoc(collection(db, 'meetings'), {
+                ...data,
+                clubId: user?.clubId,
+                createdAt: new Date().toISOString(),
+                _count: { attendances: 0 }
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['meetings'] });
             closeCreateModal();
-            alert('Reunião agendada com sucesso!');
+            toast.success('Reunião agendada com sucesso!');
         },
-        onError: (error) => {
+        onError: (error: any) => {
             console.error(error);
-            alert('Erro ao agendar reunião. Verifique os dados e tente novamente.');
+            toast.error('Erro ao agendar reunião.');
         }
     });
 
     const registerAttendanceMutation = useMutation({
         mutationFn: async (data: { meetingId: string, userIds: string[] }) => {
-            return api.post(`/meetings/${data.meetingId}/attendance`, { userIds: data.userIds });
+            const batch = writeBatch(db);
+            const meetingRef = doc(db, 'meetings', data.meetingId);
+
+            // 1. Create Attendance Records
+            data.userIds.forEach(uid => {
+                const attRef = doc(collection(db, 'attendances'));
+                batch.set(attRef, {
+                    meetingId: data.meetingId,
+                    userId: uid,
+                    date: new Date().toISOString(),
+                    clubId: user?.clubId
+                });
+
+                // 2. Add Points if Scoring
+                if (selectedMeeting?.points && selectedMeeting.points > 0) {
+                    // Increment User Points
+                    const userRef = doc(db, 'users', uid);
+                    batch.update(userRef, { points: increment(selectedMeeting.points) });
+
+                    // Log Points
+                    const logRef = doc(collection(db, 'points_logs'));
+                    batch.set(logRef, {
+                        userId: uid,
+                        activityId: data.meetingId,
+                        points: selectedMeeting.points,
+                        reason: `Reunião: ${selectedMeeting.title}`,
+                        type: 'MEETING',
+                        createdAt: new Date().toISOString(),
+                        clubId: user?.clubId
+                    });
+                }
+            });
+
+            // 3. Update Meeting Count
+            batch.update(meetingRef, {
+                '_count.attendances': increment(data.userIds.length)
+            });
+
+            await batch.commit();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['meetings'] });
-            alert('Presença registrada e pontos lançados!');
+            toast.success('Presença registrada e pontos lançados!');
             setSelectedMeeting(null);
             setSelectedMemberIds([]);
         },
         onError: (error: any) => {
             console.error('Attendance Error:', error);
-            const message = error.response?.data?.message || 'Erro ao registrar presença.';
-            alert(message);
+            toast.error('Erro ao registrar presença.');
         }
     });
 
@@ -181,10 +287,10 @@ export function Meetings() {
     };
 
     const toggleAll = () => {
-        if (selectedMemberIds.length === members.length) {
+        if (selectedMemberIds.length === filteredMembers.length) {
             setSelectedMemberIds([]);
         } else {
-            setSelectedMemberIds(members.map(m => m.id));
+            setSelectedMemberIds(filteredMembers.map(m => m.id));
         }
     };
 
@@ -217,8 +323,32 @@ export function Meetings() {
                                 Importar Presença
                             </button>
                             <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold">
-                                {selectedMeeting.type}
+                                {selectedMeeting.type === 'PARENTS' ? 'Reunião de Pais' : selectedMeeting.type}
                             </div>
+                        </div>
+                    </div>
+
+                    {/* DETAILS / ATA SECTION */}
+                    <div className="mt-6 pt-6 border-t border-slate-100">
+                        <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            Ata / Detalhes da Reunião
+                        </label>
+                        <textarea
+                            value={details}
+                            onChange={(e) => setDetails(e.target.value)}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] text-sm"
+                            placeholder="Descreva o que aconteceu na reunião (Ata, decisões, atividades...)"
+                        />
+                        <div className="flex justify-end mt-2">
+                            <button
+                                onClick={() => updateMeetingMutation.mutate({ id: selectedMeeting.id, details })}
+                                disabled={updateMeetingMutation.isPending || details === (selectedMeeting.details || '')}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                {updateMeetingMutation.isPending ? 'Salvando...' : 'Salvar Detalhes'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -228,7 +358,7 @@ export function Meetings() {
                         <div className="flex items-center gap-3">
                             <input
                                 type="checkbox"
-                                checked={selectedMemberIds.length === members.length && members.length > 0}
+                                checked={selectedMemberIds.length === filteredMembers.length && filteredMembers.length > 0}
                                 onChange={toggleAll}
                                 className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
                             />
@@ -240,7 +370,7 @@ export function Meetings() {
                     </div>
 
                     <div className="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
-                        {members.map(member => (
+                        {filteredMembers.map(member => (
                             <label key={member.id} className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer">
                                 <input
                                     type="checkbox"
@@ -250,7 +380,7 @@ export function Meetings() {
                                 />
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-800">{member.name}</p>
-                                    <p className="text-xs text-slate-500">{member.role} • {member.unit?.name || 'Sem Unidade'}</p>
+                                    <p className="text-xs text-slate-500">{translateRole(member.role)} • {member.unit?.name || 'Sem Unidade'}</p>
                                 </div>
                             </label>
                         ))}
@@ -338,7 +468,7 @@ export function Meetings() {
                             <div>
                                 <h3 className="text-lg font-bold text-slate-800">{meeting.title}</h3>
                                 <p className="text-slate-500 text-sm">
-                                    {new Date(meeting.date).toLocaleDateString()} • {meeting.type}
+                                    {new Date(meeting.date).toLocaleDateString()} • {meeting.type === 'PARENTS' ? 'Reunião de Pais' : meeting.type}
                                 </p>
                             </div>
                         </div>
@@ -410,6 +540,7 @@ export function Meetings() {
                                 <option value="REGULAR">Regular</option>
                                 <option value="SPECIAL">Especial</option>
                                 <option value="CAMP">Acampamento</option>
+                                <option value="PARENTS">Reunião de Pais</option>
                             </select>
                         </div>
                         <div className="flex items-center gap-2 pt-2">

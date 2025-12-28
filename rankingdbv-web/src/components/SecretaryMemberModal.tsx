@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { api } from '../lib/axios';
 import { generateMedicalFile } from '../lib/pdf-generator';
 import { Modal } from './Modal';
@@ -22,6 +22,16 @@ export function SecretaryMemberModal({ isOpen, onClose, memberId, initialData }:
         setFormData(initialData);
     }, [initialData]);
 
+    const { data: units = [] } = useQuery({
+        queryKey: ['club-units', initialData?.clubId],
+        queryFn: async () => {
+            if (!initialData?.clubId) return [];
+            const res = await api.get(`/units/club/${initialData.clubId}`);
+            return res.data;
+        },
+        enabled: !!initialData?.clubId
+    });
+
     const updateMutation = useMutation({
         mutationFn: async (data: any) => {
             // Strip complex objects before sending
@@ -30,6 +40,8 @@ export function SecretaryMemberModal({ isOpen, onClose, memberId, initialData }:
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['secretary-members'] });
+            queryClient.invalidateQueries({ queryKey: ['unit-ranking'] });
+            queryClient.invalidateQueries({ queryKey: ['units'] });
             alert('Dados atualizados com sucesso!');
             onClose();
         },
@@ -130,6 +142,19 @@ export function SecretaryMemberModal({ isOpen, onClose, memberId, initialData }:
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Celular / WhatsApp</label>
                                 <input type="text" value={formData.mobile || ''} onChange={e => handleChange('mobile', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Unidade</label>
+                                <select
+                                    value={formData.unitId || ''}
+                                    onChange={e => handleChange('unitId', e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-lg"
+                                >
+                                    <option value="">Sem Unidade</option>
+                                    {units.map((unit: any) => (
+                                        <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     )}

@@ -271,6 +271,44 @@ export class ActivitiesService {
             };
         }).sort((a, b) => b.average - a.average);
     }
+
+    async getUnitRankingDetails(unitId: string) {
+        const unit = await this.prisma.unit.findUnique({
+            where: { id: unitId },
+            include: {
+                members: {
+                    where: {
+                        role: 'PATHFINDER',
+                        isActive: true
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        points: true,
+                        photoUrl: true
+                    },
+                    orderBy: { points: 'desc' }
+                }
+            }
+        });
+
+        if (!unit) throw new Error('Unidade não encontrada');
+
+        const memberCount = unit.members.length;
+        const totalPoints = unit.members.reduce((sum, member) => sum + (member.points || 0), 0);
+        const average = memberCount > 0 ? totalPoints / memberCount : 0;
+
+        return {
+            unitName: unit.name,
+            memberCount,
+            totalPoints,
+            average: parseFloat(average.toFixed(1)),
+            members: unit.members.map(m => ({
+                ...m,
+                contribution: totalPoints > 0 ? ((m.points / totalPoints) * 100).toFixed(1) + '%' : '0%'
+            }))
+        };
+    }
 }
 
 

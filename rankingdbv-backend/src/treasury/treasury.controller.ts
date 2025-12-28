@@ -31,7 +31,7 @@ export class TreasuryController {
 
     @Get('club/:clubId')
     findAll(@Param('clubId') clubId: string, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.clubId !== clubId) {
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.clubId !== clubId) {
             throw new UnauthorizedException('Acesso negado aos dados deste clube.');
         }
         return this.treasuryService.findAll(clubId);
@@ -39,7 +39,7 @@ export class TreasuryController {
 
     @Get('balance/:clubId')
     getBalance(@Param('clubId') clubId: string, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.clubId !== clubId) {
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.clubId !== clubId) {
             throw new UnauthorizedException('Acesso negado.');
         }
         return this.treasuryService.getBalance(clubId);

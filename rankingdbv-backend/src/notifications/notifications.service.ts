@@ -55,4 +55,37 @@ export class NotificationsService {
             data: { read: true }
         });
     }
+    async sendGlobal(title: string, message: string, type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' = 'INFO') {
+        const users = await this.prisma.user.findMany({
+            where: { isActive: true },
+            select: { id: true }
+        });
+
+        if (users.length === 0) return { count: 0 };
+
+        // Batch create in database
+        await this.prisma.notification.createMany({
+            data: users.map(user => ({
+                userId: user.id,
+                title,
+                message,
+                type,
+                read: false,
+                createdAt: new Date()
+            }))
+        });
+
+        // Emit socket events
+        users.forEach(user => {
+            this.gateway.sendToUser(user.id, 'notification', {
+                title,
+                message,
+                type,
+                read: false,
+                createdAt: new Date().toISOString()
+            });
+        });
+
+        return { count: users.length };
+    }
 }

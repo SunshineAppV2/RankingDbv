@@ -3,6 +3,7 @@ import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Check, X, User as UserIcon, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { ROLE_TRANSLATIONS } from './members/types';
 
 interface User {
     id: string;
@@ -26,7 +27,7 @@ export function Approvals() {
             // Logic: 
             // - Master sees NEW CLUBS (Owners)
             // - Club Admins see NEW MEMBERS (Non-Owners)
-            const isMaster = user?.email === 'master@rankingdbv.com';
+            const isMaster = user?.email === 'master@cantinhodbv.com';
 
             const pending = response.data.filter((u: any) => {
                 if (u.status !== 'PENDING') return false;
@@ -123,7 +124,7 @@ export function Approvals() {
                                 <h3 className="font-bold text-slate-800">{user.name}</h3>
                                 <p className="text-sm text-slate-500">{user.email}</p>
                                 <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
-                                    {user.role}
+                                    {ROLE_TRANSLATIONS[user.role] || user.role}
                                 </span>
                             </div>
                         </div>

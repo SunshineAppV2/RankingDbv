@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/axios';
 import { Printer, Home, Users, RefreshCw, Plus } from 'lucide-react';
 import { generatePathfinderCard } from '../lib/pdf-generator';
 import { Modal } from '../components/Modal';
+
+// Firestore Imports
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth';
+import { db, auth } from '../lib/firebase';
+import { toast } from 'sonner';
 
 interface Club {
     id: string;
@@ -53,23 +58,24 @@ export function Profile() {
 
     // Initial Load: Clubs
     useEffect(() => {
-        api.get('/clubs/public')
-            .then(response => setClubs(response.data))
-            .catch(err => console.error('Error fetching clubs:', err));
+        const fetchClubs = async () => {
+            const snaps = await getDocs(collection(db, 'clubs'));
+            setClubs(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Club)));
+        };
+        fetchClubs();
     }, []);
 
     // Load Units when Club Changes
     useEffect(() => {
         if (clubId) {
-            api.get(`/units/club/${clubId}`)
-                .then(response => setUnits(response.data))
-                .catch(err => console.error('Error fetching units:', err));
+            const fetchUnits = async () => {
+                const q = query(collection(db, 'units'), where('clubId', '==', clubId));
+                const snaps = await getDocs(q);
+                setUnits(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Unit)));
+            };
+            fetchUnits();
         } else {
             setUnits([]);
-            // Only clear unitId if the currently selected unit doesn't belong to the new club
-            // But usually safe to clear if manually changing club.
-            // However, on initial load with existing user.unitId, we don't want to clear it.
-            // We need a check. But for simplicity, if user changes club, unit likely invalid.
         }
     }, [clubId]);
 
@@ -77,25 +83,45 @@ export function Profile() {
 
     const updateProfileMutation = useMutation({
         mutationFn: async (data: any) => {
-            const response = await api.patch(`/users/${user?.id}`, data);
-            return response.data;
+            const userRef = doc(db, 'users', user!.id);
+            const updates: any = {
+                name: data.name,
+                clubId: data.clubId,
+                unitId: data.unitId
+            };
+
+            await updateDoc(userRef, updates);
+
+            if (data.password && auth.currentUser) {
+                await updatePassword(auth.currentUser, data.password);
+            }
         },
         onSuccess: () => {
             setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
             setPassword('');
             setConfirmPassword('');
-            // Optional: Update Auth Context if context doesn't auto-refresh
-            // if (login) login(token, updatedUser); // Need token...
+            toast.success('Perfil atualizado!');
+            // updateEmail is tricky without re-auth, we skip it for now or assume email is read-only in UI
         },
-        onError: () => {
-            setMessage({ type: 'error', text: 'Erro ao atualizar perfil.' });
+        onError: (err: any) => {
+            console.error(err);
+            if (err.code === 'auth/requires-recent-login') {
+                setMessage({ type: 'error', text: 'Para alterar a senha, faça login novamente.' });
+                toast.error('Requer login recente.');
+            } else {
+                setMessage({ type: 'error', text: 'Erro ao atualizar perfil.' });
+            }
         }
     });
 
     const createClubMutation = useMutation({
         mutationFn: async () => {
-            const response = await api.post('/clubs', { name: newClubName, region: newClubRegion });
-            return response.data;
+            const docRef = await addDoc(collection(db, 'clubs'), {
+                name: newClubName,
+                region: newClubRegion,
+                createdAt: new Date().toISOString()
+            });
+            return { id: docRef.id, name: newClubName };
         },
         onSuccess: (newClub) => {
             setClubId(newClub.id);
@@ -104,24 +130,32 @@ export function Profile() {
             setNewClubName('');
             setNewClubRegion('');
             queryClient.invalidateQueries({ queryKey: ['ranking'] });
-            alert('Clube criado com sucesso!');
+            // Refresh clubs list manually or rely on useEffect? 
+            // Better to append to local state or re-fetch
+            getDocs(collection(db, 'clubs')).then(snaps => setClubs(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Club))));
+
+            toast.success('Clube criado com sucesso!');
         },
-        onError: () => alert('Erro ao criar clube.')
+        onError: () => toast.error('Erro ao criar clube.')
     });
 
     const createUnitMutation = useMutation({
         mutationFn: async () => {
-            const response = await api.post('/units', { name: newUnitName, clubId });
-            return response.data;
+            const docRef = await addDoc(collection(db, 'units'), {
+                name: newUnitName,
+                clubId: clubId, // Use current selected clubId
+                createdAt: new Date().toISOString()
+            });
+            return { id: docRef.id, name: newUnitName };
         },
         onSuccess: (newUnit) => {
             setUnits([...units, newUnit]);
             setUnitId(newUnit.id);
             setIsUnitModalOpen(false);
             setNewUnitName('');
-            alert('Unidade criada com sucesso!');
+            toast.success('Unidade criada com sucesso!');
         },
-        onError: () => alert('Erro ao criar unidade.')
+        onError: () => toast.error('Erro ao criar unidade.')
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -370,8 +404,30 @@ function MySpecialtiesList() {
         queryKey: ['my-specialties-profile', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const response = await api.get('/specialties/my');
-            return response.data;
+
+            // Join user_specialties with specialties
+            const q = query(collection(db, 'user_specialties'), where('userId', '==', user.id));
+            const snapshot = await getDocs(q);
+
+            const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
+                const data = docSnap.data();
+                // Fetch specialty details
+                let specialtyData = { name: 'Unknown', area: 'Geral', imageUrl: null };
+                if (data.specialtyId) {
+                    const specRef = doc(db, 'specialties', data.specialtyId);
+                    const specSnap = await getDoc(specRef);
+                    if (specSnap.exists()) {
+                        specialtyData = specSnap.data() as any;
+                    }
+                }
+
+                return {
+                    id: docSnap.id,
+                    ...data,
+                    specialty: specialtyData
+                };
+            }));
+            return results;
         },
         enabled: !!user?.id
     });

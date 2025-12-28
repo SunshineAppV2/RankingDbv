@@ -24,7 +24,7 @@ export class ActivitiesController {
     @UseGuards(JwtAuthGuard)
     @Get('club/:clubId')
     findAll(@Param('clubId') clubId: string, @Request() req) {
-        if (req.user.email !== 'master@rankingdbv.com' && req.user.clubId !== clubId) {
+        if (req.user.email !== 'master@cantinhodbv.com' && req.user.clubId !== clubId) {
             throw new UnauthorizedException('Acesso negado aos dados deste clube.');
         }
         return this.activitiesService.findAllByClub(clubId);
@@ -40,7 +40,7 @@ export class ActivitiesController {
     @Get('ranking/:clubId')
     getLeaderboard(@Param('clubId') clubId: string, @Request() req, @Query() query: any) {
         // Security: Only Master can bypass specific clubId (use GLOBAL)
-        if (clubId === 'GLOBAL' && req.user.email !== 'master@rankingdbv.com') {
+        if (clubId === 'GLOBAL' && req.user.email !== 'master@cantinhodbv.com') {
             throw new UnauthorizedException('Apenas Master pode ver Ranking Global.');
         }
 
@@ -84,7 +84,7 @@ export class ActivitiesController {
         // 3. Admin/Owner/Director can see members of their club (this check is simplified, backend should verify club match, but for now we trust roles)
 
         const isSelf = req.user.id === userId;
-        const isMaster = req.user.email === 'master@rankingdbv.com';
+        const isMaster = req.user.email === 'master@cantinhodbv.com';
         const isManager = ['OWNER', 'ADMIN', 'DIRECTOR', 'COUNSELOR', 'INSTRUCTOR'].includes(req.user.role);
 
         if (!isSelf && !isMaster && !isManager) {
@@ -97,11 +97,17 @@ export class ActivitiesController {
     @Get('ranking/units/:clubId')
     getUnitRanking(@Param('clubId') clubId: string, @Request() req) {
         // Security: Ensure user belongs to club or is Master
-        if (clubId !== 'GLOBAL' && req.user.clubId !== clubId && req.user.email !== 'master@rankingdbv.com') {
+        if (clubId !== 'GLOBAL' && req.user.clubId !== clubId && req.user.email !== 'master@cantinhodbv.com') {
             // For now, allow viewing if they have access to the dashboard?
             // Actually, if it's public ranking, maybe open?
             // But let's stick to auth.
         }
         return this.activitiesService.getUnitRanking(clubId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('ranking/unit-details/:unitId')
+    getUnitRankingDetails(@Param('unitId') unitId: string) {
+        return this.activitiesService.getUnitRankingDetails(unitId);
     }
 }

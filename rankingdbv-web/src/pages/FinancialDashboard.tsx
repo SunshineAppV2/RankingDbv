@@ -4,6 +4,9 @@ import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { DollarSign, Upload, Check, Clock, AlertCircle, FileText } from 'lucide-react';
 import { Modal } from '../components/Modal';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { toast } from 'sonner';
 
 interface Transaction {
     id: string;
@@ -37,28 +40,55 @@ export function FinancialDashboard() {
         return <div className="text-slate-500 text-[10px] mt-0.5">Vence em {diffDays} dias</div>;
     };
 
+    // Firestore imports removed from here
+
     const { data: transactions = [] } = useQuery<Transaction[]>({
         queryKey: ['my-finances', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const response = await api.get(`/treasury/user/${user.id}`);
-            return response.data;
+            // Try fetching by payerId first. If legacy data uses memberIds array, we might miss some.
+            // But going forward we use payerId or payer.id.
+            // Let's assume payerId is the standard.
+            const q = query(
+                collection(db, 'transactions'),
+                where('payerId', '==', user.id)
+            );
+            const snapshot = await getDocs(q);
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+            return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         },
         enabled: !!user?.id
     });
 
     const payMutation = useMutation({
         mutationFn: async ({ id, file }: { id: string, file: File }) => {
+            // 1. Upload File
             const formData = new FormData();
             formData.append('file', file);
-            return api.post(`/treasury/${id}/pay`, formData);
+
+            // Use existing API for upload only
+            const res = await api.post('/uploads', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            const fullUrl = res.data.url.startsWith('http')
+                ? res.data.url
+                : `${api.defaults.baseURL?.replace('/api', '')}${res.data.url}`;
+
+            // 2. Update Transaction
+            const txRef = doc(db, 'transactions', id);
+            await updateDoc(txRef, {
+                status: 'WAITING_APPROVAL',
+                proofUrl: fullUrl,
+                updatedAt: new Date().toISOString()
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['my-finances'] });
             setSelectedTx(null);
             setProofFile(null);
-            alert('Pagamento informado com sucesso! Aguarde a validação.');
-        }
+            toast.success('Pagamento informado com sucesso! Aguarde a validação.');
+        },
+        onError: () => toast.error('Erro ao enviar comprovante.')
     });
 
     const handlePayment = (e: React.FormEvent) => {

@@ -92,6 +92,7 @@ model Club {
   events         Event[]
   requirements   Requirement[]
   minutes        Minute[]
+  masterTransactions MasterTransaction[]
 
   @@map("clubs")
 }
@@ -207,7 +208,7 @@ model User {
   city            String?
   state           String?
   complement      String?
-
+  
   // Education
   educationLevel  String?
   educationStatus String?
@@ -325,6 +326,8 @@ model Meeting {
   date      DateTime
   type      String   @default("REGULAR")
   points    Int      @default(10)
+  
+  details   String?  // NEW: Descrição do que ocorreu ou ATA
 
   clubId    String
   club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -611,4 +614,21 @@ model FAQ {
   createdAt DateTime @default(now())
 
   @@map("faqs")
+}
+
+model MasterTransaction {
+  id           String          @id @default(uuid())
+  type         TransactionType // INCOME or EXPENSE
+  amount       Float
+  description  String
+  category     String
+  date         DateTime        @default(now())
+  
+  // Source Identification
+  sourceClubId String?
+  sourceClub   Club?           @relation(fields: [sourceClubId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime        @default(now())
+
+  @@map("master_transactions")
 }

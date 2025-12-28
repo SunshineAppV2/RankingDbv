@@ -10,40 +10,45 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 const getSocketUrl = () => {
-    return localStorage.getItem('api_url') || 'http://localhost:3000';
+    return localStorage.getItem('api_url') || `http://${window.location.hostname}:3000`;
 };
 
+import { auth } from '../lib/firebase';
+
 export function SocketProvider({ children }: { children: ReactNode }) {
-    const { token, user } = useAuth();
+    const { user } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
-        if (token && user) {
-            const socketUrl = getSocketUrl();
-            console.log('[Socket] Connecting to:', socketUrl);
+        const connectSocket = async () => {
+            if (user && auth.currentUser) {
+                const token = await auth.currentUser.getIdToken();
+                const socketUrl = getSocketUrl();
+                console.log('[Socket] Connecting to:', socketUrl);
 
-            const newSocket = io(socketUrl, {
-                auth: { token },
-                transports: ['websocket'], // Force WebSocket to avoid polling issues
-                autoConnect: true,
-            });
+                const newSocket = io(socketUrl, {
+                    auth: { token },
+                    transports: ['websocket'],
+                    autoConnect: true,
+                });
 
-            newSocket.on('connect', () => {
-                setIsConnected(true);
-                console.log('Connected to WebSocket');
-            });
+                newSocket.on('connect', () => {
+                    setIsConnected(true);
+                    console.log('Connected to WebSocket');
+                });
 
-            newSocket.on('disconnect', () => {
-                setIsConnected(false);
-                console.log('Disconnected from WebSocket');
-            });
+                newSocket.on('disconnect', () => {
+                    setIsConnected(false);
+                    console.log('Disconnected from WebSocket');
+                });
 
-            setSocket(newSocket);
+                setSocket(newSocket);
+            }
+        };
 
-            return () => {
-                newSocket.disconnect();
-            };
+        if (user) {
+            connectSocket();
         } else {
             if (socket) {
                 socket.disconnect();
@@ -51,7 +56,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
                 setIsConnected(false);
             }
         }
-    }, [token, user]);
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [user]);
 
     return (
         <SocketContext.Provider value={{ socket, isConnected }}>

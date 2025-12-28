@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, ArrowRight, Home, Users, MapPin, Globe, Award } from 'lucide-react';
-import { api } from '../lib/axios';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 interface Club {
     id: string;
@@ -15,17 +17,19 @@ interface Unit {
     name: string;
 }
 
-interface HierarchyOptions {
-    regions: string[];
-    missions: string[];
-    unions: string[];
-}
+// Static options to replace API call
+const HIERARCHY_OPTIONS = {
+    unions: ['União Central Brasileira', 'União Sul Brasileira', 'União Nordeste', 'Outra'],
+    missions: ['Associação Paulistana', 'Associação Paulista Sul', 'Associação Paulista Leste', 'Outra'],
+    regions: ['Região 1', 'Região 2', 'Região 3', 'Região 4', 'Outra']
+};
 
 type RegistrationMode = 'JOIN' | 'CREATE';
 
 export function Register() {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    // We don't need login function needed here necessarily if we just redirect, 
+    // but AuthContext usually auto-logins on firebase creation.
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState<RegistrationMode>('JOIN');
 
@@ -47,14 +51,22 @@ export function Register() {
     const [region, setRegion] = useState('');
     const [mission, setMission] = useState('');
     const [union, setUnion] = useState('');
-    const [hierarchyOptions, setHierarchyOptions] = useState<HierarchyOptions>({ regions: [], missions: [], unions: [] });
+
+    // Using static options
+    const hierarchyOptions = HIERARCHY_OPTIONS;
 
     const [searchParams] = useSearchParams();
 
+    // Fetch Clubs
     useEffect(() => {
-        api.get('/clubs/public')
-            .then(response => {
-                setClubs(response.data);
+        const fetchClubs = async () => {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'clubs'));
+                const clubsList: Club[] = [];
+                querySnapshot.forEach((doc) => {
+                    clubsList.push({ id: doc.id, ...doc.data() } as Club);
+                });
+                setClubs(clubsList);
 
                 // Handle Invite Link
                 const inviteClubId = searchParams.get('clubId');
@@ -63,24 +75,37 @@ export function Register() {
                     setClubId(inviteClubId);
                     toast.success('Convite aplicado! Complete seu cadastro.');
                 }
-            })
-            .catch(err => console.error('Error fetching clubs:', err));
+            } catch (err) {
+                console.error('Error fetching clubs from Firestore:', err);
+            }
+        };
 
-        api.get('/clubs/hierarchy-options')
-            .then(response => setHierarchyOptions(response.data))
-            .catch(err => console.error('Error fetching hierarchy options:', err));
+        fetchClubs();
     }, [searchParams]);
 
+    // Fetch Units when Club changes
     useEffect(() => {
-        if (mode === 'JOIN' && clubId) {
-            api.get(`/units/club/${clubId}`)
-                .then(response => setUnits(response.data))
-                .catch(err => console.error('Error fetching units:', err));
-        } else {
-            setUnits([]);
-            setUnitId('');
-        }
+        const fetchUnits = async () => {
+            if (mode === 'JOIN' && clubId) {
+                try {
+                    const q = query(collection(db, 'units'), where('clubId', '==', clubId));
+                    const querySnapshot = await getDocs(q);
+                    const unitsList: Unit[] = [];
+                    querySnapshot.forEach((doc) => {
+                        unitsList.push({ id: doc.id, ...doc.data() } as Unit);
+                    });
+                    setUnits(unitsList);
+                } catch (err) {
+                    console.error('Error fetching units:', err);
+                }
+            } else {
+                setUnits([]);
+                setUnitId('');
+            }
+        };
+        fetchUnits();
     }, [clubId, mode]);
+
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -94,48 +119,93 @@ export function Register() {
                 if (!role) throw new Error('Selecione sua função.');
             } else {
                 if (!clubName) throw new Error('Digite o nome do seu Clube.');
-                if (!region || !mission || !union) throw new Error('Preencha os dados hierárquicos (Região, Missão, União).');
+                if (!region || !mission || !union) throw new Error('Preencha os dados hierárquicos.');
             }
 
-            const payload = {
+            // 1. Create Authentication User
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Update Display Name
+            await updateProfile(user, { displayName: name });
+
+            let finalClubId = clubId;
+            let finalRole = role;
+
+            // 2. If Creating Club, create it in Firestore first
+            if (mode === 'CREATE') {
+                const clubRef = await addDoc(collection(db, 'clubs'), {
+                    name: clubName,
+                    region,
+                    mission,
+                    union,
+                    ownerId: user.uid,
+                    createdAt: new Date().toISOString()
+                });
+                finalClubId = clubRef.id;
+                finalRole = 'OWNER';
+            }
+
+            // 3. Create User Profile in Firestore (Legacy/Stats)
+            await setDoc(doc(db, 'users', user.uid), {
+                uid: user.uid,
                 name,
                 email,
-                password,
-                // Join Fields
-                clubId: mode === 'JOIN' ? clubId : undefined,
-                unitId: mode === 'JOIN' ? unitId : undefined,
-                role: mode === 'JOIN' ? role : 'OWNER',
-                // Create Fields
-                clubName: mode === 'CREATE' ? clubName : undefined,
-                region: mode === 'CREATE' ? region : undefined,
-                mission: mode === 'CREATE' ? mission : undefined,
-                union: mode === 'CREATE' ? union : undefined,
-            };
+                role: finalRole,
+                clubId: finalClubId,
+                unitId: (mode === 'JOIN' && unitId) ? unitId : null,
+                createdAt: new Date().toISOString()
+            });
 
-            const response = await api.post('/auth/register', payload);
+            // 4. Register in Backend (PostgreSQL) - CRITICAL FOR LOGIN
+            try {
+                // Prepare DTO
+                const registerPayload = {
+                    email,
+                    password, // Backend needs password to create its own hash/user
+                    name,
+                    role: finalRole,
+                    clubId: (mode === 'JOIN') ? clubId : undefined, // If CREATE, backend creates club inside register
+                    unitId: (mode === 'JOIN' && unitId) ? unitId : undefined,
 
-            const { access_token, user } = response.data;
-            login(access_token, user);
+                    // Fields for New Club (if CREATE)
+                    clubName: (mode === 'CREATE') ? clubName : undefined,
+                    region: (mode === 'CREATE') ? region : undefined,
+                    mission: (mode === 'CREATE') ? mission : undefined,
+                    union: (mode === 'CREATE') ? union : undefined,
+                };
 
-            if (mode === 'CREATE') {
-                toast.success(`Clube "${clubName}" criado com sucesso!`);
-            } else {
-                toast.success('Cadastro realizado! Aguarde aprovação do diretor.');
+                const res = await import('../lib/axios').then(m => m.api.post('/auth/register', registerPayload));
+
+                if (res.data && res.data.access_token) {
+                    localStorage.setItem('token', res.data.access_token);
+                }
+
+                if (mode === 'CREATE') {
+                    toast.success(`Clube "${clubName}" criado com sucesso!`);
+                } else {
+                    toast.success('Cadastro realizado!');
+                }
+
+                navigate('/dashboard');
+
+            } catch (backendErr) {
+                console.error("Backend registration failed:", backendErr);
+                toast.error("Erro ao sincronizar com o servidor. Contate o suporte.");
+                // Optional: Delete firebase user to roll back? 
+                // For now, let's just warn.
             }
-
-            navigate('/dashboard');
 
         } catch (err: any) {
             console.error(err);
-            if (err.message) {
-                setError(err.message);
-                toast.error(err.message);
-            } else if (err.response?.status === 409) {
+            if (err.code === 'auth/email-already-in-use') {
                 setError('Email já cadastrado.');
                 toast.error('Email já cadastrado.');
+            } else if (err.code === 'auth/weak-password') {
+                setError('A senha deve ter pelo menos 6 caracteres.');
             } else {
-                setError('Erro ao criar conta. Tente novamente.');
-                toast.error('Erro ao conectar com o servidor.');
+                setError(`Erro: ${err.message} `);
+                toast.error('Erro ao criar conta.');
             }
         } finally {
             setLoading(false);
@@ -151,7 +221,7 @@ export function Register() {
                         <UserPlus className="text-white w-8 h-8" />
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2">Criar Conta</h1>
-                    <p className="text-green-100">Junte-se ao Ranking DBV</p>
+                    <p className="text-green-100">Junte-se ao Cantinho DBV</p>
                 </div>
             </div>
 
@@ -231,7 +301,7 @@ export function Register() {
                     {mode === 'JOIN' ? (
                         <>
                             <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 mb-2">
-                                <p>Selecione o clube que você participa. Seu cadastro ficara pendente até a aprovação.</p>
+                                <p>Selecione o clube que você participa.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Clube</label>
@@ -286,9 +356,8 @@ export function Register() {
                     ) : (
                         <>
                             <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800 mb-2">
-                                <p>Você será o <b>Diretor/Admin</b> deste novo clube. Preencha os dados da hierarquia corretamente.</p>
+                                <p>Você será o <b>Diretor/Admin</b> deste novo clube.</p>
                             </div>
-
 
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
@@ -300,10 +369,7 @@ export function Register() {
                                             required
                                             list="unions-list"
                                             value={union}
-                                            onChange={e => {
-                                                setUnion(e.target.value);
-                                                setMission(''); // Reset mission when union changes
-                                            }}
+                                            onChange={e => setUnion(e.target.value)}
                                             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
                                             placeholder="Ex: União Central Brasileira"
                                         />
@@ -325,24 +391,9 @@ export function Register() {
                                             onChange={e => setMission(e.target.value)}
                                             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
                                             placeholder="Ex: Associação Paulistana"
-                                            disabled={!union && hierarchyOptions.unions.length > 0} // Optional guidance
                                         />
                                         <datalist id="missions-list">
-                                            {(() => {
-                                                // Filter missions based on selected Union
-                                                const tree = (hierarchyOptions as any).hierarchyTree;
-                                                // Try exact match or find loosely
-                                                const relatedMissions = tree ? tree[union] : null;
-
-                                                if (relatedMissions) {
-                                                    return relatedMissions.map((opt: string, i: number) => <option key={i} value={opt} />);
-                                                }
-                                                // Fallback: Show all if union not found in tree (or custom union), OR restrict? 
-                                                // Let's show all if no tree match to support custom data, 
-                                                // or strictly nothing if we want to force hierarchy?
-                                                // User wants "Type or Search", so showing all as fallback is safetst.
-                                                return hierarchyOptions.missions.map((opt, i) => <option key={i} value={opt} />);
-                                            })()}
+                                            {hierarchyOptions.missions.map((opt, i) => <option key={i} value={opt} />)}
                                         </datalist>
                                     </div>
                                 </div>
