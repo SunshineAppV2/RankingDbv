@@ -13,8 +13,6 @@ const getSocketUrl = () => {
     return import.meta.env.VITE_API_URL || localStorage.getItem('api_url') || 'http://localhost:3000';
 };
 
-import { auth } from '../lib/firebase';
-
 export function SocketProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -22,8 +20,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const connectSocket = async () => {
-            if (user && auth.currentUser) {
-                const token = await auth.currentUser.getIdToken();
+            if (user) {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.warn('[Socket] No backend token found, skipping connection');
+                    return;
+                }
                 const socketUrl = getSocketUrl();
                 console.log('[Socket] Connecting to:', socketUrl);
 
