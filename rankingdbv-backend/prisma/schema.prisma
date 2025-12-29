@@ -459,6 +459,7 @@ enum Role {
   COUNSELOR
   REGIONAL
   MASTER
+  DIRECTOR
 }
 
 enum PlanTier {
