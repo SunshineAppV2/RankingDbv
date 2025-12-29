@@ -58,7 +58,7 @@ export class PaymentsService {
         // For now using a dummy valid format CPF for Sandbox.
 
         try {
-            const response = await lastValueFrom(
+            const response: any = await lastValueFrom(
                 this.httpService.post(`${this.baseUrl}/orders`, payload, {
                     headers: {
                         Authorization: `Bearer ${this.token}`,
