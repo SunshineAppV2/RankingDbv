@@ -5,14 +5,12 @@ import { CreateAchievementDto } from './dto/create-achievement.dto';
 import { AssignAchievementDto } from './dto/assign-achievement.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
-const db = firebaseAdmin.firestore();
-
 @Injectable()
 export class AchievementsService {
     constructor(private notificationsService: NotificationsService) { }
 
     async create(createAchievementDto: CreateAchievementDto) {
-        const docRef = await db.collection('achievements').add({
+        const docRef = await firebaseAdmin.firestore().collection('achievements').add({
             ...createAchievementDto,
             createdAt: new Date().toISOString()
         });
@@ -20,13 +18,13 @@ export class AchievementsService {
     }
 
     async findAll() {
-        const snapshot = await db.collection('achievements').get();
+        const snapshot = await firebaseAdmin.firestore().collection('achievements').get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     async assign(assignAchievementDto: AssignAchievementDto, assignedBy: string) {
         // Check duplication?
-        const existing = await db.collection('user_achievements')
+        const existing = await firebaseAdmin.firestore().collection('user_achievements')
             .where('userId', '==', assignAchievementDto.userId)
             .where('achievementId', '==', assignAchievementDto.achievementId)
             .get();
@@ -35,12 +33,12 @@ export class AchievementsService {
             throw new Error('Achievement already assigned to this user');
         }
 
-        const achRef = await db.collection('achievements').doc(assignAchievementDto.achievementId).get();
+        const achRef = await firebaseAdmin.firestore().collection('achievements').doc(assignAchievementDto.achievementId).get();
         if (!achRef.exists) throw new Error('Achievement not found');
         const achData = achRef.data();
 
         // Add record
-        const docRef = await db.collection('user_achievements').add({
+        const docRef = await firebaseAdmin.firestore().collection('user_achievements').add({
             ...assignAchievementDto,
             assignedAt: new Date().toISOString(),
             assignedBy
@@ -57,7 +55,7 @@ export class AchievementsService {
 
         // If achievement has points, add to user?
         if (achData?.points && achData.points > 0) {
-            const userRef = db.collection('users').doc(assignAchievementDto.userId);
+            const userRef = firebaseAdmin.firestore().collection('users').doc(assignAchievementDto.userId);
             const userSnap = await userRef.get();
             if (userSnap.exists) {
                 const currentPoints = userSnap.data()?.points || 0;
@@ -69,7 +67,7 @@ export class AchievementsService {
     }
 
     async findByUser(userId: string) {
-        const snapshot = await db.collection('user_achievements')
+        const snapshot = await firebaseAdmin.firestore().collection('user_achievements')
             .where('userId', '==', userId)
             .get();
 
