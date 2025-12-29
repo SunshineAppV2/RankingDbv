@@ -51,6 +51,21 @@ export class ClubsService implements OnModuleInit {
     }
 
     async create(createClubDto: CreateClubDto & { referrerClubId?: string }) {
+        // 1. Check for duplicate name (Case Insensitive-ish)
+        // Ideally we would use a unique constraint, but since we want custom error:
+        const existing = await this.prisma.club.findFirst({
+            where: {
+                name: {
+                    equals: createClubDto.name,
+                    mode: 'insensitive' // Requires PostgreSQL
+                }
+            }
+        });
+
+        if (existing) {
+            throw new UnauthorizedException('Já existe um clube cadastrado com este nome.');
+        }
+
         const slug = this.generateSlug(createClubDto.name);
 
         return this.prisma.club.create({

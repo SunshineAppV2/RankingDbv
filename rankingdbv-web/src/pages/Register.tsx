@@ -161,6 +161,12 @@ export function Register() {
             } else {
                 if (!clubName) throw new Error('Digite o nome do seu Clube.');
                 if (!region || !mission || !union) throw new Error('Preencha os dados hierárquicos.');
+
+                // Check for duplicates locally
+                const isDuplicate = clubs.some(c => c.name.trim().toLowerCase() === clubName.trim().toLowerCase());
+                if (isDuplicate) {
+                    throw new Error('Já existe um clube com este nome. Por favor, escolha outro ou entre em contato se for um erro.');
+                }
             }
 
             let user;
