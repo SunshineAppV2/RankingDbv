@@ -58,7 +58,7 @@ export function Dashboard() {
                     .sort((a, b) => a.day - b.day);
 
                 // 2. Next Event (Wrapped in inner try-catch for Index Safety)
-                let nextEvent = null;
+                let nextEvent: any = null;
                 try {
                     const today = new Date().toISOString();
                     const eventsQ = query(
