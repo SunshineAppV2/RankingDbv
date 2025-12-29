@@ -41,10 +41,22 @@ export class ClubsService implements OnModuleInit {
         return club ? club.id : null;
     }
 
+    private generateSlug(name: string): string {
+        return name
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') + '-' + Math.random().toString(36).substring(2, 7);
+    }
+
     async create(createClubDto: CreateClubDto & { referrerClubId?: string }) {
+        const slug = this.generateSlug(createClubDto.name);
+
         return this.prisma.club.create({
             data: {
                 name: createClubDto.name,
+                slug,
                 region: createClubDto.region,
                 mission: createClubDto.mission,
                 union: createClubDto.union,

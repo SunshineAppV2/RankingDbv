@@ -251,13 +251,12 @@ export class UsersService {
 
   // Cria um novo usuário
   async create(createUserDto: any): Promise<User> {
-    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, region, mission, union, childrenIds, ...rest } = createUserDto; // Strip extra fields
+    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, region, mission, union, childrenIds, password, ...rest } = createUserDto; // Strip extra fields
 
     // 1. Check Subscription Limits
     if (clubId) {
       const club = await this.prisma.club.findUnique({
         where: { id: clubId },
-        // include: { _count: { select: { users: true } } } // Old logic
       });
 
       if (club) {
@@ -287,6 +286,42 @@ export class UsersService {
       }
     }
 
+    // --- FIREBASE SYNC START ---
+    if (rest.email && password) {
+      try {
+        console.log(`[FirebaseSync] Creating user ${rest.email}...`);
+        await firebaseAdmin.auth().createUser({
+          email: rest.email,
+          password: password,
+          displayName: rest.name,
+          emailVerified: true
+        });
+        console.log(`[FirebaseSync] User ${rest.email} created.`);
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-exists') {
+          console.warn(`[FirebaseSync] User ${rest.email} already exists. Syncing password...`);
+          try {
+            const fbUser = await firebaseAdmin.auth().getUserByEmail(rest.email);
+            // Update password to match current system registry
+            await firebaseAdmin.auth().updateUser(fbUser.uid, {
+              password: password,
+              displayName: rest.name
+            });
+            console.log(`[FirebaseSync] User ${rest.email} updated.`);
+          } catch (updErr) {
+            console.error(`[FirebaseSync] Failed to update existing user:`, updErr);
+          }
+        } else {
+          console.error(`[FirebaseSync] Failed to create user:`, error);
+          // Non-blocking error? Proceed to DB creation anyway so we don't block system usage.
+        }
+      }
+    }
+    // --- FIREBASE SYNC END ---
+
+    // Hash password for DB
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Sanitize Enum and Relations
     const validDbvClass = dbvClass === '' ? undefined : dbvClass;
     const validUnitId = unitId === '' ? undefined : unitId;
@@ -305,6 +340,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         ...rest,
+        password: hashedPassword, // Use Hashed Password
         birthDate: validBirthDate,
         dbvClass: validDbvClass as any, // Cast to any or correct Enum type if imported
         schoolShift: schoolShift, // Explicitly add it back

@@ -93,9 +93,6 @@ export class AuthService {
   }
 
   async register(createUserDto: CreateUserDto & { referralCode?: string }) {
-    // 1. Hash Password
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
     let clubId = createUserDto.clubId;
     let role = createUserDto.role || 'PATHFINDER';
     let status = 'PENDING'; // Default status for joiners
@@ -139,7 +136,7 @@ export class AuthService {
     // 4. Create User
     const user = await this.usersService.create({
       ...createUserDto,
-      password: hashedPassword,
+      password: createUserDto.password, // Pass RAW password to service (it will hash it)
       clubId: clubId,
       role: role as any,
       isActive: status === 'ACTIVE'
