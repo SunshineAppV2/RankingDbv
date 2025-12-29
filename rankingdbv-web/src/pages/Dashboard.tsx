@@ -33,7 +33,7 @@ export function Dashboard() {
         queryFn: async () => {
             if (!user?.clubId) return null;
             const clubId = user.clubId;
-            console.log('[Dashboard] Fetching stats for club:', clubId, 'v=2025-12-28-2333');
+            console.log('[Dashboard] Fetching stats for club:', clubId);
 
             try {
                 // 1. Members and Birthdays
