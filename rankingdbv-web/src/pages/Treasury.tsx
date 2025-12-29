@@ -422,13 +422,15 @@ export function Treasury() {
                         <Plus className="w-5 h-5" />
                         Nova Transação
                     </button>
-                    <button
-                        onClick={() => setIsPixModalOpen(true)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                        <QrCode className="w-5 h-5" />
-                        Cobrar Pix
-                    </button>
+                    {user?.role === 'MASTER' && (
+                        <button
+                            onClick={() => setIsPixModalOpen(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                        >
+                            <QrCode className="w-5 h-5" />
+                            Cobrar Pix
+                        </button>
+                    )}
                 </div>
             </div>
 

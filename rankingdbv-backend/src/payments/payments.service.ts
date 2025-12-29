@@ -8,7 +8,9 @@ export class PaymentsService {
     private readonly logger = new Logger(PaymentsService.name);
     // Priority: Env Var > Hardcoded (User provided)
     private readonly token = process.env.PAGBANK_TOKEN || '4b85aac0-5c29-4876-963a-378cb7b3fcfaa53575bb4e2bad2a7a5ef3d3e1d76dcbfa24-2042-43d6-bd15-487dac931b2a';
-    private readonly baseUrl = 'https://sandbox.api.pagseguro.com'; // Default to Sandbox for safety first
+    private readonly baseUrl = (process.env.NODE_ENV === 'production' || process.env.PAGBANK_ENV === 'production')
+        ? 'https://api.pagseguro.com'
+        : 'https://sandbox.api.pagseguro.com';
 
     constructor(private readonly httpService: HttpService) { }
 
