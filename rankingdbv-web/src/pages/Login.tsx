@@ -84,6 +84,24 @@ export function Login() {
         return;
       }
 
+      if (err.message?.includes('aguarda aprovação')) {
+        setError(err.message);
+        toast.info('Seu cadastro está sendo analisado!', {
+          description: 'Aguarde até que a diretoria do seu clube aprove seu acesso.',
+          duration: 6000
+        });
+        return;
+      }
+
+      if (err.message?.includes('bloqueada')) {
+        setError(err.message);
+        toast.error('Acesso Bloqueado', {
+          description: 'Sua conta foi desativada pela diretoria.',
+          duration: 6000
+        });
+        return;
+      }
+
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         toast.error('Email ou senha incorretos.');
         setError('Email ou senha incorretos.');
