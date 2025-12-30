@@ -2,9 +2,7 @@ import { useState, useRef } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import {
     Menu,
-    ChevronRight,
     AlertTriangle,
-    Loader2,
     RefreshCw,
 } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
@@ -12,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ROLE_TRANSLATIONS } from '../pages/members/types';
 import { NotificationBell } from '../components/NotificationBell';
 import { HelpButton } from '../components/HelpButton';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
+
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/axios';
 
@@ -20,8 +18,8 @@ export function DashboardLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Pull to Refresh Logic
+    // Pull to Refresh Logic Removed
     const mainRef = useRef<HTMLDivElement>(null);
-    const { pullDistance } = usePullToRefresh(mainRef, () => window.location.reload());
 
     const { user } = useAuth();
 
@@ -71,22 +69,9 @@ export function DashboardLayout() {
 
             <div
                 className="flex-1 flex flex-col min-h-screen transition-all duration-200 ease-out lg:pl-24"
-                style={pullDistance > 0 ? { transform: `translateY(${Math.min(pullDistance, 100)}px)` } : undefined}
             >
                 {/* Pull Indicator */}
-                {pullDistance > 10 && (
-                    <div className="absolute top-0 left-0 w-full h-16 flex items-center justify-center text-slate-500 z-0">
-                        {pullDistance > 150 ? (
-                            <div className="flex items-center gap-2 text-blue-600 font-bold animate-pulse">
-                                <Loader2 className="w-5 h-5 animate-spin" /> Atualizando...
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-70">
-                                <ChevronRight className="w-4 h-4 rotate-90" /> Puxe para atualizar
-                            </div>
-                        )}
-                    </div>
-                )}
+
 
                 {/* Overdue Banner */}
                 {isClubOverdue && (
