@@ -19,9 +19,12 @@ export class MinutesController {
         // body should have: title, date, type, content, attendees(optional)
         const { title, date, type, content, attendees } = body;
 
+        const dateObj = new Date(date);
+
         return this.minutesService.create({
             title,
-            date: new Date(date),
+            year: dateObj.getFullYear(),
+            date: dateObj,
             type: type as MinuteType,
             content,
             attendees: attendees || [], // JSON
