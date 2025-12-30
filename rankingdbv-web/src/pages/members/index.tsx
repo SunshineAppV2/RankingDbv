@@ -224,7 +224,7 @@ function MembersContent() {
         if (!user?.clubId) return toast.error('Erro: ID do clube não encontrado.');
 
         const origin = window.location.origin;
-        const link = `${origin}/register?clubId=${user.clubId}`;
+        const link = `${origin}/register?clubId=${user.clubId}&clubName=${encodeURIComponent(clubStatus?.name || '')}`;
 
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
             toast.warning('Atenção: Link Localhost só funcionará neste computador.');

@@ -96,10 +96,16 @@ export function Register() {
     useEffect(() => {
         const checkInvite = async () => {
             const inviteClubId = searchParams.get('clubId') || searchParams.get('clubid') || searchParams.get('clubID');
+            const urlClubName = searchParams.get('clubName') || searchParams.get('clubname') || searchParams.get('clubNAME');
 
             if (inviteClubId) {
                 setMode('JOIN');
                 setClubId(inviteClubId);
+
+                // If name is already in URL, use it immediately
+                if (urlClubName) {
+                    setInviteClubName(urlClubName);
+                }
 
                 // 1. Try to find in the already loaded list
                 if (clubs.length > 0) {
@@ -111,16 +117,28 @@ export function Register() {
                     }
                 }
 
-                // 2. Fallback: Fetch directly from Firestore if not in the list (or list still loading)
+                // 2. Fallback: Fetch directly from Firestore
                 try {
                     const clubDoc = await getDoc(doc(db, 'clubs', inviteClubId));
                     if (clubDoc.exists()) {
                         const data = clubDoc.data();
                         setInviteClubName(data.name);
-                        console.log('Invite club fetched from Firestore:', data.name);
-                    } else {
-                        console.warn('Invite club not found in Firestore:', inviteClubId);
+                        console.log('Invite club fetched by DocID:', data.name);
+                        return;
                     }
+
+                    // 3. Last Resort: Query in case the ID is a field and not the DocID
+                    console.log('Searching by query for:', inviteClubId);
+                    const q = query(collection(db, 'clubs'), where('id', '==', inviteClubId));
+                    const qSnapshot = await getDocs(q);
+                    if (!qSnapshot.empty) {
+                        const data = qSnapshot.docs[0].data();
+                        setInviteClubName(data.name);
+                        console.log('Invite club found by Query:', data.name);
+                        return;
+                    }
+
+                    console.warn('Invite club not found in any Firestore method:', inviteClubId);
                 } catch (err) {
                     console.error('Error fetching invite club details:', err);
                 }
