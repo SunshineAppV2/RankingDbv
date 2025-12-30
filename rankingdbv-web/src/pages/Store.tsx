@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/axios';
+
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, runTransaction, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, storage } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ShoppingBag, Plus, Tag, Coins, PackageCheck, AlertCircle, Edit, Trash2 } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { toast } from 'sonner';
@@ -336,19 +337,14 @@ export function Store() {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
             toast.info('Enviando imagem...');
-            const res = await api.post('/uploads', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            const fullUrl = res.data.url.startsWith('http')
-                ? res.data.url
-                : `${api.defaults.baseURL?.replace('/api', '')}${res.data.url}`;
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+            const storageRef = ref(storage, `products/${Date.now()}_${sanitizedName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
 
-            setImageUrl(fullUrl);
+            setImageUrl(downloadURL);
             toast.success('Imagem enviada com sucesso!');
         } catch (error) {
             console.error(error);
@@ -458,55 +454,59 @@ export function Store() {
                                         )}
                                     </div>
 
-                                    {/* Admin Actions Overlay */}
-                                    {isAdmin && (
-                                        <div className="absolute top-2 left-2 flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleOpenEdit(product)}
-                                                className="bg-white p-1.5 rounded-full shadow hover:bg-blue-50 text-blue-600"
-                                                title="Editar"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm(`Excluir "${product.name}"?`)) {
-                                                        deleteMutation.mutate(product.id);
-                                                    }
-                                                }}
-                                                className="bg-white p-1.5 rounded-full shadow hover:bg-red-50 text-red-600"
-                                                title="Excluir"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    )}
+
 
                                 </div>
                                 <div className="p-4 flex-1 flex flex-col">
                                     <h3 className="font-bold text-slate-800 mb-1">{product.name}</h3>
                                     <p className="text-sm text-slate-500 mb-4 line-clamp-2">{product.description}</p>
 
-                                    <div className="mt-auto flex items-center justify-between">
-                                        <span className="text-lg font-bold text-yellow-600 flex items-center gap-1">
-                                            <Coins className="w-5 h-5" />
-                                            {product.price}
-                                        </span>
-                                        <button
-                                            onClick={() => {
-                                                if (confirm(`Comprar "${product.name}" por ${product.price} pontos?`)) {
-                                                    buyMutation.mutate(product.id);
+                                    <div className="mt-auto">
+                                        {/* Admin Actions Row */}
+                                        {isAdmin && (
+                                            <div className="flex justify-end gap-2 mb-3 pt-2 border-t border-slate-100">
+                                                <button
+                                                    onClick={() => handleOpenEdit(product)}
+                                                    className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <Edit className="w-3 h-3" /> Editar
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm(`Excluir "${product.name}"?`)) {
+                                                            deleteMutation.mutate(product.id);
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="w-3 h-3" /> Excluir
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-lg font-bold text-yellow-600 flex items-center gap-1">
+                                                <Coins className="w-5 h-5" />
+                                                {product.price}
+                                            </span>
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm(`Comprar "${product.name}" por ${product.price} pontos?`)) {
+                                                        buyMutation.mutate(product.id);
+                                                    }
+                                                }}
+                                                disabled={
+                                                    (currentUser?.points || 0) < product.price ||
+                                                    buyMutation.isPending ||
+                                                    (product.stock !== -1 && product.stock <= 0)
                                                 }
-                                            }}
-                                            disabled={
-                                                (currentUser?.points || 0) < product.price ||
-                                                buyMutation.isPending ||
-                                                (product.stock !== -1 && product.stock <= 0)
-                                            }
-                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            {product.stock !== -1 && product.stock <= 0 ? 'Esgotado' : 'Comprar'}
-                                        </button>
+                                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {product.stock !== -1 && product.stock <= 0 ? 'Esgotado' : 'Comprar'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -713,7 +713,12 @@ export function Store() {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Imagem do Produto</label>
                         <div className="flex items-center gap-4">
                             {imageUrl && (
-                                <img src={imageUrl} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block relative group" title="Clique para abrir em nova aba">
+                                    <img src={imageUrl} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center rounded-lg transition-colors">
+                                        {/* Hover effect */}
+                                    </div>
+                                </a>
                             )}
                             <input
                                 type="file"

@@ -7,6 +7,8 @@ import { Share2, Plus, ListChecks, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/Modal';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { MemberDetailsModal } from '../../components/MemberDetailsModal';
 import { MemberForm } from './components/MemberForm';
 import { MembersTable } from './components/MembersTable';
@@ -224,8 +226,25 @@ function MembersContent() {
     const handleCopyInvite = async () => {
         if (!user?.clubId) return toast.error('Erro: ID do clube não encontrado.');
 
+        let clubName = clubStatus?.name;
+
+        // Robust Fallback: Fetch name if missing
+        if (!clubName) {
+            try {
+                const clubDoc = await getDoc(doc(db, 'clubs', user.clubId));
+                if (clubDoc.exists()) {
+                    clubName = clubDoc.data().name;
+                }
+            } catch (err) {
+                console.error("Error fetching club name for invite:", err);
+            }
+        }
+
+        // Final fallback if everything fails
+        if (!clubName) clubName = 'Clube Desbravadores';
+
         const origin = window.location.origin;
-        const link = `${origin}/register?clubId=${user.clubId}&clubName=${encodeURIComponent(clubStatus?.name || '')}`;
+        const link = `${origin}/register?clubId=${user.clubId}&clubName=${encodeURIComponent(clubName)}`;
 
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
             toast.warning('Atenção: Link Localhost só funcionará neste computador.');

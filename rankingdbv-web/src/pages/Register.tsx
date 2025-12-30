@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { TermsModal } from '../components/TermsModal';
 import { UserPlus, Mail, Lock, User, ArrowRight, Home, Users, MapPin, Globe, Award, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
@@ -42,7 +43,9 @@ export function Register() {
     // We don't need login function needed here necessarily if we just redirect, 
     // but AuthContext usually auto-logins on firebase creation.
     const [loading, setLoading] = useState(false);
-    const [mode, setMode] = useState<RegistrationMode>('JOIN');
+    const [mode, setMode] = useState<RegistrationMode>('CREATE');
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
 
     // Common Form State
     const [name, setName] = useState('');
@@ -206,6 +209,8 @@ export function Register() {
                 if (!region || !mission || !union) throw new Error('Preencha os dados hierárquicos.');
             }
 
+            if (!termsAccepted) throw new Error('Você precisa aceitar os Termos de Uso.');
+
             let user;
             try {
                 // 1. Attempt to Create Authentication User
@@ -345,21 +350,7 @@ export function Register() {
                 </div>
             </div>
 
-            {/* Mode Switcher */}
-            <div className="flex border-b border-slate-200">
-                <button
-                    onClick={() => setMode('JOIN')}
-                    className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'JOIN' ? 'bg-white text-green-600 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                >
-                    Entrar em um Clube
-                </button>
-                <button
-                    onClick={() => setMode('CREATE')}
-                    className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'CREATE' ? 'bg-white text-green-600 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                >
-                    Cadastrar Novo Clube
-                </button>
-            </div>
+
 
             <div className="p-8">
                 <form onSubmit={handleRegister} className="space-y-5">
@@ -590,6 +581,24 @@ export function Register() {
                         </>
                     )}
 
+
+                    <div className="flex items-start gap-3 pt-2">
+                        <input
+                            type="checkbox"
+                            checked={termsAccepted}
+                            onChange={e => setTermsAccepted(e.target.checked)}
+                            className="mt-1 w-4 h-4 text-green-600 rounded border-slate-300 focus:ring-green-500"
+                            id="terms"
+                        />
+                        <label htmlFor="terms" className="text-sm text-slate-600">
+                            Li e concordo com os{' '}
+                            <button type="button" onClick={() => setShowTerms(true)} className="text-blue-600 font-bold hover:underline">
+                                Termos de Uso e Privacidade
+                            </button>
+                            {' '}do Cantinho DBV.
+                        </label>
+                    </div>
+
                     <button
                         type="submit"
                         disabled={loading}
@@ -613,6 +622,11 @@ export function Register() {
                     </Link>
                 </div>
             </div>
+            <TermsModal
+                isOpen={showTerms}
+                onClose={() => setShowTerms(false)}
+                onAccept={() => setTermsAccepted(true)}
+            />
         </div>
     );
 }

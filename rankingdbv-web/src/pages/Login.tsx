@@ -1,7 +1,7 @@
 ﻿
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Settings, Server, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Settings, Server, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../lib/firebase';
@@ -199,11 +199,17 @@ export function Login() {
           </form>
 
           {/* New Register Link */}
-          <div className="mt-6 text-center text-sm text-slate-600">
-            <span>Ainda não tem conta?</span>{' '}
-            <a href="/register" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-              Criar conta
-            </a>
+          {/* New Register Link - Highlighted */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <p className="text-center text-sm text-slate-600 mb-3 font-medium">Ainda não tem cadastro?</p>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              <UserPlus className="w-5 h-5" />
+              CRIAR CONTA AGORA
+            </button>
           </div>
         </div>
       </div>

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/axios';
 import { useAuth } from '../contexts/AuthContext';
+import { storage } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Award, Plus, Edit, Trash2, Upload, X, FileSpreadsheet, CheckCircle, Search } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { SpecialtyDetailsModal } from '../components/SpecialtyDetailsModal';
@@ -250,10 +252,12 @@ export function Specialties() {
             const formData = new FormData();
             formData.append('file', file);
             try {
-                const res = await api.post('/uploads', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-                setImageUrl(res.data.url);
+                const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const storageRef = ref(storage, `specialties/${Date.now()}_${sanitizedName}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+
+                setImageUrl(downloadURL);
             } catch (err) {
                 console.error(err);
                 alert('Erro ao fazer upload da imagem.');
@@ -457,9 +461,11 @@ export function Specialties() {
                                     <span className="text-sm text-blue-600 animate-pulse">Enviando imagem...</span>
                                 ) : imageUrl ? (
                                     <div className="relative">
-                                        <img src={imageUrl} alt="Preview" className="w-24 h-24 object-contain mb-2 p-2 bg-white rounded-lg shadow-sm border" />
+                                        <a href={imageUrl} target="_blank" rel="noopener noreferrer" title="Clique para abrir">
+                                            <img src={imageUrl} alt="Preview" className="w-24 h-24 object-contain mb-2 p-2 bg-white rounded-lg shadow-sm border" />
+                                        </a>
                                         <p className="text-xs text-green-600 font-medium">Imagem carregada com sucesso</p>
-                                        <p className="text-xs text-slate-400 mt-1">Clique para substituir</p>
+                                        <p className="text-xs text-slate-400 mt-1">Clique na imagem para testar</p>
                                     </div>
                                 ) : (
                                     <>
