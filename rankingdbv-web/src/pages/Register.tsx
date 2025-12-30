@@ -94,14 +94,20 @@ export function Register() {
 
     // Handle Invite Link & URL Params
     useEffect(() => {
-        // Check for Invite Link
-        const inviteClubId = searchParams.get('clubId');
-        if (inviteClubId && clubs.length > 0) {
-            const foundClub = clubs.find(c => c.id === inviteClubId);
-            if (foundClub) {
-                setInviteClubName(foundClub.name);
-                setClubId(inviteClubId);
-                setMode('JOIN');
+        // Check for Invite Link (handle both case variations)
+        const inviteClubId = searchParams.get('clubId') || searchParams.get('clubid') || searchParams.get('clubID');
+
+        if (inviteClubId) {
+            setMode('JOIN');
+            // Important: Set the clubId state immediately so it matches the option value
+            setClubId(inviteClubId);
+
+            if (clubs.length > 0) {
+                // Try to find the club name in the loaded list
+                const foundClub = clubs.find(c => String(c.id) === String(inviteClubId));
+                if (foundClub) {
+                    setInviteClubName(foundClub.name);
+                }
             }
         }
 
