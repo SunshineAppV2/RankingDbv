@@ -7,7 +7,7 @@ import { generatePathfinderCard } from '../lib/pdf-generator';
 import { Modal } from '../components/Modal';
 
 // Firestore Imports
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import { toast } from 'sonner';
@@ -90,22 +90,26 @@ export function Profile() {
 
 
 
-    // Initial Load: Clubs
+    // Initial Load: Clubs (Start with ONLY user's current club)
     useEffect(() => {
-        const fetchClubs = async () => {
-            const snaps = await getDocs(collection(db, 'clubs'));
-            setClubs(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Club)));
-        };
-        fetchClubs();
-    }, []);
+        // If user already has a club, we don't fetch others.
+        // If user has NO club (unlikely if registered properly), maybe fetch public?
+        // User asked to RESTRICT. So we just set the current club if available.
+        if (fullUser?.club) {
+            setClubs([{ id: fullUser.clubId!, name: fullUser.club.name } as Club]);
+        }
+    }, [fullUser]);
 
-    // Load Units when Club Changes
+    // Load Units for CURRENT Club Only
     useEffect(() => {
         if (clubId) {
             const fetchUnits = async () => {
-                const q = query(collection(db, 'units'), where('clubId', '==', clubId));
-                const snaps = await getDocs(q);
-                setUnits(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Unit)));
+                try {
+                    const res = await api.get(`/units/club/${clubId}`);
+                    setUnits(res.data);
+                } catch (err) {
+                    console.error("Failed to load units", err);
+                }
             };
             fetchUnits();
         } else {
@@ -153,12 +157,12 @@ export function Profile() {
 
     const createClubMutation = useMutation({
         mutationFn: async () => {
-            const docRef = await addDoc(collection(db, 'clubs'), {
+            // Use API to create Club
+            const res = await api.post('/clubs', {
                 name: newClubName,
-                region: newClubRegion,
-                createdAt: new Date().toISOString()
+                region: newClubRegion
             });
-            return { id: docRef.id, name: newClubName };
+            return res.data;
         },
         onSuccess: (newClub) => {
             setClubId(newClub.id);
@@ -167,23 +171,23 @@ export function Profile() {
             setNewClubName('');
             setNewClubRegion('');
             queryClient.invalidateQueries({ queryKey: ['ranking'] });
-            // Refresh clubs list manually or rely on useEffect? 
-            // Better to append to local state or re-fetch
-            getDocs(collection(db, 'clubs')).then(snaps => setClubs(snaps.docs.map(d => ({ id: d.id, ...d.data() } as Club))));
+
+            // Refresh clubs list
+            api.get('/clubs/public').then(res => setClubs(res.data));
 
             toast.success('Clube criado com sucesso!');
         },
-        onError: () => toast.error('Erro ao criar clube.')
+        onError: (err: any) => toast.error('Erro ao criar clube: ' + (err.response?.data?.message || err.message))
     });
 
     const createUnitMutation = useMutation({
         mutationFn: async () => {
-            const docRef = await addDoc(collection(db, 'units'), {
+            // Use API to create Unit
+            const res = await api.post('/units', {
                 name: newUnitName,
-                clubId: clubId, // Use current selected clubId
-                createdAt: new Date().toISOString()
+                clubId: clubId
             });
-            return { id: docRef.id, name: newUnitName };
+            return res.data;
         },
         onSuccess: (newUnit) => {
             setUnits([...units, newUnit]);
@@ -192,7 +196,7 @@ export function Profile() {
             setNewUnitName('');
             toast.success('Unidade criada com sucesso!');
         },
-        onError: () => toast.error('Erro ao criar unidade.')
+        onError: (err: any) => toast.error('Erro ao criar unidade: ' + (err.response?.data?.message || err.message))
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -237,6 +241,24 @@ export function Profile() {
                         <Printer className="w-4 h-4" />
                         Imprimir Ficha
                     </button>
+                </div>
+
+                {/* Role Badges */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+                    <h3 className="text-lg font-medium text-slate-700 border-b pb-2 mb-4">Minhas Funções</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {/* Primary Role */}
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-bold text-sm border border-purple-200">
+                            {user?.role} (Principal)
+                        </span>
+
+                        {/* Secondary Roles */}
+                        {user?.secondaryRoles?.map(role => (
+                            <span key={role} className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full font-medium text-sm border border-blue-200">
+                                {role}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -315,11 +337,8 @@ export function Profile() {
                                             <Home className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                                             <select
                                                 value={clubId}
-                                                onChange={e => {
-                                                    setClubId(e.target.value);
-                                                    setUnitId(''); // Reset Unit when Club changes
-                                                }}
-                                                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                                                disabled={true} // ALWAYS DISABLED as per User Request
+                                                className="w-full pl-10 pr-4 py-2 border rounded-lg appearance-none bg-gray-100 text-gray-500 cursor-not-allowed"
                                             >
                                                 <option value="">Selecione...</option>
                                                 {clubs.map(c => (

@@ -23,6 +23,10 @@ export class UpdateUserDto {
     @IsOptional()
     role?: string;
 
+    @IsOptional()
+    @IsArray()
+    secondaryRoles?: string[];
+
     @IsBoolean()
     @IsOptional()
     isActive?: boolean;

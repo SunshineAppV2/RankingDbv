@@ -69,14 +69,21 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
 
     const hasAccess = (moduleKey: string) => {
         if (!user) return false;
-        if (['OWNER', 'ADMIN', 'MASTER', 'DIRECTOR'].includes(user.role)) return true;
+
+        const effectiveRoles = [user.role, ...(user.secondaryRoles || [])];
+
+        // 1. Super Roles Check
+        if (effectiveRoles.some(r => ['OWNER', 'ADMIN', 'MASTER', 'DIRECTOR'].includes(r))) return true;
+
         const perms = clubData?.settings?.permissions || {
             SECRETARY: ['SECRETARY', 'MEMBERS', 'ATTENDANCE', 'EVENTS'],
             TREASURER: ['TREASURY'],
             COUNSELOR: ['MEMBERS', 'ATTENDANCE', 'EVENTS'],
             INSTRUCTOR: ['CLASSES', 'MEMBERS', 'EVENTS'],
         };
-        return perms[user.role]?.includes(moduleKey);
+
+        // Check if ANY of the user's roles grants access to this module
+        return effectiveRoles.some(r => perms[r]?.includes(moduleKey));
     };
 
     // --- Menu Construction ---

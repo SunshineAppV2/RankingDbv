@@ -19,8 +19,13 @@ export function ProtectedRoute({ allowedRoles }: { allowedRoles?: string[] }) {
         return <Navigate to="/change-password" replace />;
     }
 
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        return <Navigate to="/dashboard" replace />;
+    if (allowedRoles && user) {
+        const userRoles = [user.role, ...(user.secondaryRoles || [])];
+        const hasPermission = userRoles.some(role => allowedRoles.includes(role));
+
+        if (!hasPermission) {
+            return <Navigate to="/dashboard" replace />;
+        }
     }
 
     return <Outlet />;

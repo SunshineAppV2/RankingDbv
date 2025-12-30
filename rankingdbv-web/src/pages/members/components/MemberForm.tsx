@@ -164,6 +164,38 @@ export function MemberForm({ isOpen, onClose, onSubmit, initialData, units, club
                             </select>
                         </div>
 
+                        {/* Secondary Roles (Multi-Role) */}
+                        <div className="mt-4 border p-4 rounded-lg bg-gray-50">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Funções Adicionais (Multicargos)</label>
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                                {Object.entries(ROLE_TRANSLATIONS)
+                                    .filter(([key]) => key !== formData.role) // Exclude primary role
+                                    .map(([key, label]) => {
+                                        // Filter Industrial/System roles unless master?
+                                        if (key === 'OWNER' && user?.email !== 'master@cantinhodbv.com') return null;
+
+                                        return (
+                                            <label key={key} className="flex items-center gap-2 p-2 hover:bg-white rounded cursor-pointer border border-transparent hover:border-gray-200">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.secondaryRoles?.includes(key)}
+                                                    onChange={e => {
+                                                        const current = formData.secondaryRoles || [];
+                                                        if (e.target.checked) setFormData({ ...formData, secondaryRoles: [...current, key] });
+                                                        else setFormData({ ...formData, secondaryRoles: current.filter((r: string) => r !== key) });
+                                                    }}
+                                                    className="w-4 h-4 text-purple-600 rounded"
+                                                />
+                                                <span className="text-sm text-slate-700">{label}</span>
+                                            </label>
+                                        );
+                                    })}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">
+                                * O usuário terá acesso a todas as permissões destas funções + a função principal.
+                            </p>
+                        </div>
+
                         {formData.role === 'PARENT' && (
                             <div className="border p-3 rounded bg-blue-50 my-2">
                                 <label className="block text-sm font-bold text-blue-800 mb-2">Associar Filhos (Desbravadores)</label>
@@ -454,6 +486,6 @@ export function MemberForm({ isOpen, onClose, onSubmit, initialData, units, club
                     <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Salvar</button>
                 </div>
             </form>
-        </Modal>
+        </Modal >
     );
 }

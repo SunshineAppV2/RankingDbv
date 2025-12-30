@@ -16,6 +16,7 @@ interface User {
     name: string;
     email: string;
     role: string;
+    secondaryRoles?: string[];
     clubId?: string;
     dbvClass?: string;
     unit?: { name: string };
@@ -49,10 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 // Fetch full data from backend to get the real Name (source of truth)
                 let backendName = firebaseUser.displayName || 'Usuário';
+                let secondaryRoles: string[] = [];
+
                 try {
                     const res = await api.get(`/users/${decoded.userId || decoded.sub}`);
-                    if (res.data && res.data.name) {
-                        backendName = res.data.name;
+                    if (res.data) {
+                        if (res.data.name) backendName = res.data.name;
+                        if (res.data.secondaryRoles) secondaryRoles = res.data.secondaryRoles;
                     }
                 } catch (apiErr) {
                     console.warn("Could not fetch user profile from API, using fallback name:", apiErr);
@@ -64,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     email: firebaseUser.email || decoded.email,
                     name: backendName,
                     role: decoded.role,
+                    secondaryRoles: secondaryRoles,
                     clubId: decoded.clubId,
                     unitId: decoded.unitId,
                     mustChangePassword: decoded.mustChangePassword
@@ -171,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     name: backendUser.name,
                     email: backendUser.email,
                     role: backendUser.role,
+                    secondaryRoles: backendUser.secondaryRoles || [],
                     clubId: backendUser.clubId,
                     unitId: backendUser.unitId,
                     mustChangePassword: backendUser.mustChangePassword

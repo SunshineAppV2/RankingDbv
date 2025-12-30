@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean, IsEnum, IsArray } from 'class-validator';
 
 export class CreateUserDto {
     @IsString()
@@ -25,6 +25,11 @@ export class CreateUserDto {
     @IsOptional()
     @IsEnum(['OWNER', 'ADMIN', 'INSTRUCTOR', 'COUNSELOR', 'PARENT', 'PATHFINDER', 'REGIONAL'])
     role?: 'OWNER' | 'ADMIN' | 'INSTRUCTOR' | 'COUNSELOR' | 'PARENT' | 'PATHFINDER' | 'REGIONAL';
+
+    @IsOptional()
+    @IsArray()
+    @IsEnum(['OWNER', 'ADMIN', 'INSTRUCTOR', 'COUNSELOR', 'PARENT', 'PATHFINDER', 'REGIONAL'], { each: true })
+    secondaryRoles?: ('OWNER' | 'ADMIN' | 'INSTRUCTOR' | 'COUNSELOR' | 'PARENT' | 'PATHFINDER' | 'REGIONAL')[];
 
     @IsBoolean()
     @IsOptional()
