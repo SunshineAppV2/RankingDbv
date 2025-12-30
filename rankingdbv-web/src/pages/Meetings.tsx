@@ -7,6 +7,7 @@ import { Modal } from '../components/Modal';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, writeBatch, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
+import { ROLE_TRANSLATIONS } from './members/types';
 
 interface Meeting {
     id: string;
@@ -86,20 +87,9 @@ export function Meetings() {
 
     // --- Helpers ---
 
-    const translateRole = (role: string) => {
-        const map: Record<string, string> = {
-            'PATHFINDER': 'Desbravador',
-            'COUNSELOR': 'Conselheiro',
-            'INSTRUCTOR': 'Instrutor',
-            'DIRECTOR': 'Diretor',
-            'ADMIN': 'Admin',
-            'PARENT': 'Pai/Responsável',
-            'MASTER': 'Master',
-            'OWNER': 'Proprietário',
-            'REGIONAL': 'Regional',
-        };
-        return map[role] || role;
-    };
+    // --- Helpers ---
+
+    // Removed translateRole in favor of ROLE_TRANSLATIONS import
 
     const filteredMembers = useMemo(() => {
         if (!selectedMeeting) return [];
@@ -380,7 +370,7 @@ export function Meetings() {
                                 />
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-800">{member.name}</p>
-                                    <p className="text-xs text-slate-500">{translateRole(member.role)} • {member.unit?.name || 'Sem Unidade'}</p>
+                                    <p className="text-xs text-slate-500">{ROLE_TRANSLATIONS[member.role] || member.role} • {member.unit?.name || 'Sem Unidade'}</p>
                                 </div>
                             </label>
                         ))}

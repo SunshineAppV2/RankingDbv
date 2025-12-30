@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Modal } from '../components/Modal';
 import { SpecialtyDetailsModal } from '../components/SpecialtyDetailsModal';
 import { AdminSpecialtyReviewModal } from '../components/AdminSpecialtyReviewModal';
+import { ROLE_TRANSLATIONS } from './members/types';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -1022,7 +1023,7 @@ export function Activities() {
                                         />
                                         <div>
                                             <p className="text-sm font-medium text-slate-800">{member.name}</p>
-                                            <p className="text-xs text-slate-500">{member.role}</p>
+                                            <p className="text-xs text-slate-500">{ROLE_TRANSLATIONS[member.role] || member.role}</p>
                                         </div>
                                     </label>
                                 ))
@@ -1182,7 +1183,7 @@ export function Activities() {
                                         />
                                         <div>
                                             <p className="text-sm font-medium text-slate-800">{member.name}</p>
-                                            <p className="text-xs text-slate-500">{member.role}</p>
+                                            <p className="text-xs text-slate-500">{ROLE_TRANSLATIONS[member.role] || member.role}</p>
                                         </div>
                                     </label>
                                 ))

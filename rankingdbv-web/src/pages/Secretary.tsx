@@ -6,6 +6,7 @@ import { Search, Filter, FileText, Activity, Shield, CheckCircle, AlertCircle, E
 import { SecretaryMemberModal } from '../components/SecretaryMemberModal';
 import { SecretaryMinutesList } from '../components/SecretaryMinutesList';
 import { SecretaryMinuteEditor } from '../components/SecretaryMinuteEditor';
+import { ROLE_TRANSLATIONS } from './members/types';
 
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -175,7 +176,7 @@ export function Secretary() {
                                                 </div>
                                                 <div>
                                                     <div className="font-bold">{member.name}</div>
-                                                    <div className="text-xs text-slate-500">{member.role}</div>
+                                                    <div className="text-xs text-slate-500">{ROLE_TRANSLATIONS[member.role] || member.role}</div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-3 text-center">

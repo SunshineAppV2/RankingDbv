@@ -593,7 +593,7 @@ export function Store() {
                                 <tr key={purchase.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-slate-800">{purchase.user?.name || 'Unknown'}</div>
-                                        <div className="text-xs text-slate-500 capitalize">{ROLE_TRANSLATIONS[purchase.user?.role || '']?.toLowerCase() || purchase.user?.role?.toLowerCase() || '-'}</div>
+                                        <div className="text-xs text-slate-500 capitalize">{ROLE_TRANSLATIONS[purchase.user?.role || ''] || purchase.user?.role || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-slate-800">{purchase.product?.name || 'Item Removido'}</div>

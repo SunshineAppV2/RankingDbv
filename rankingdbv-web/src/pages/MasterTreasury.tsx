@@ -286,22 +286,7 @@ export function MasterTreasury() {
                 />
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl">
-                <CashFlowChart
-                    title="Fluxo de Caixa Mensal"
-                    data={summary.monthlyData}
-                    dataKeyName="name"
-                    dataKeyIncome="income"
-                    dataKeyExpense="expense"
-                />
-                <SimpleLineChart
-                    title="Evolução do Saldo"
-                    data={summary.evolutionData}
-                    dataKeyName="name"
-                    dataKeyValue="balance"
-                />
-            </div>
+
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end">

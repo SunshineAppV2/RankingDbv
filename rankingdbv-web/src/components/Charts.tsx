@@ -22,8 +22,8 @@ export function SimpleBarChart({ title, data, dataKeyName, dataKeyValue, color =
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-6">{title}</h3>
-            <div style={{ width: '100%', height: height }}>
-                <ResponsiveContainer>
+            <div style={{ width: '100%', height: height, minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis
@@ -61,8 +61,8 @@ export function CashFlowChart({ title, data, dataKeyName, dataKeyIncome, dataKey
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-6">{title}</h3>
-            <div style={{ width: '100%', height: height }}>
-                <ResponsiveContainer>
+            <div style={{ width: '100%', height: height, minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis
@@ -103,8 +103,8 @@ export function SimpleLineChart({ title, data, dataKeyName, dataKeyValue, height
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-6">{title}</h3>
-            <div style={{ width: '100%', height: height }}>
-                <ResponsiveContainer>
+            <div style={{ width: '100%', height: height, minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis
@@ -151,8 +151,8 @@ export function SimplePieChart({ title, data, dataKeyName, dataKeyValue, height 
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-6">{title}</h3>
-            <div style={{ width: '100%', height: height }}>
-                <ResponsiveContainer>
+            <div style={{ width: '100%', height: height, minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
                             data={data}

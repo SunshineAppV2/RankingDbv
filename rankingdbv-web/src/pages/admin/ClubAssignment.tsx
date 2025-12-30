@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/axios';
 import { toast } from 'sonner';
 import { Users, Building2, Save } from 'lucide-react';
+import { ROLE_TRANSLATIONS } from '../members/types';
 
 interface AvailableDirector {
     id: string;
@@ -102,7 +103,7 @@ export function ClubAssignment() {
                                     <div className="font-medium">{director.name}</div>
                                     <div className="text-sm text-gray-500">{director.email}</div>
                                     <div className="text-xs bg-gray-200 inline-block px-2 py-0.5 rounded mt-1 text-gray-700">
-                                        {director.role}
+                                        {ROLE_TRANSLATIONS[director.role] || director.role}
                                     </div>
                                 </button>
                             ))}

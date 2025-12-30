@@ -3,6 +3,7 @@ import { api } from '../lib/axios';
 import { Modal } from './Modal';
 import { toast } from 'sonner';
 import { User as UserIcon, Lock, Shield, Pencil, Save, X, Key } from 'lucide-react';
+import { ROLE_TRANSLATIONS } from '../pages/members/types';
 
 interface User {
     id: string;
@@ -227,7 +228,7 @@ export function EditClubModal({ club, onClose, onSave }: EditClubModalProps) {
                                             <Shield className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <div className="font-bold text-slate-800">{director.name} <span className="text-[10px] bg-amber-400 text-white px-1.5 py-0.5 rounded ml-2">DIRETOR / OWNER</span></div>
+                                            <div className="font-bold text-slate-800">{director.name} <span className="text-[10px] bg-amber-400 text-white px-1.5 py-0.5 rounded ml-2">{ROLE_TRANSLATIONS[director.role] || director.role}</span></div>
                                             <div className="text-xs text-slate-500">{director.email}</div>
                                         </div>
                                     </div>
@@ -270,7 +271,7 @@ export function EditClubModal({ club, onClose, onSave }: EditClubModalProps) {
                                             </div>
                                             <div>
                                                 <div className="font-bold text-sm text-slate-700">{member.name}</div>
-                                                <div className="text-[10px] text-slate-400 font-medium uppercase">{member.role} • {member.email}</div>
+                                                <div className="text-[10px] text-slate-400 font-medium uppercase">{ROLE_TRANSLATIONS[member.role] || member.role} • {member.email}</div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1">

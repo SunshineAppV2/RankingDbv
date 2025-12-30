@@ -1,29 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { Outlet, Link } from 'react-router-dom';
 import {
-    LayoutDashboard,
-    Users,
-    Award,
-    LogOut,
     Menu,
-    X,
-    Shield, // For Clubes/Admin
-    UserCircle, // For Profile
-    Calendar,
-    User,
-    DollarSign,
-    ShoppingBag,
-    ListChecks,
     ChevronRight,
     AlertTriangle,
-    BookOpen,
     Loader2,
-    HelpCircle,
-    Building2,
-    BarChart,
     RefreshCw,
-    Globe, // For Global Admin
 } from 'lucide-react';
+import { Sidebar } from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { ROLE_TRANSLATIONS } from '../pages/members/types';
 import { NotificationBell } from '../components/NotificationBell';
@@ -34,30 +18,14 @@ import { api } from '../lib/axios';
 
 export function DashboardLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [specialtiesOpen, setSpecialtiesOpen] = useState(false);
-
 
     // Pull to Refresh Logic
     const mainRef = useRef<HTMLDivElement>(null);
     const { pullDistance } = usePullToRefresh(mainRef, () => window.location.reload());
 
-    // Main Section States
-    const [sectionsOpen, setSectionsOpen] = useState({
-        geral: true,
-        meuAcesso: true,
-        gestao: true,
-        acompanhamento: true,
-        config: false
-    });
+    const { user } = useAuth();
 
-    const toggleSection = (section: keyof typeof sectionsOpen) => {
-        setSectionsOpen(prev => ({ ...prev, [section]: !prev[section] }));
-    };
-
-    const navigate = useNavigate();
-    const { logout, user } = useAuth();
-
-    // Fetch Club Settings for Permissions
+    // Fetch Club Settings for Permissions (Still needed for Overdue check?)
     const { data: clubData } = useQuery({
         queryKey: ['club-settings-layout', user?.clubId],
         queryFn: async () => {
@@ -69,12 +37,6 @@ export function DashboardLayout() {
         staleTime: 1000 * 60 * 5 // Cache for 5 mins
     });
 
-    // Auto-open Config for Master
-    useEffect(() => {
-        if (user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') {
-            setSectionsOpen(prev => ({ ...prev, config: true }));
-        }
-    }, [user]);
     // Check Overdue Status (Dynamic)
     let isClubOverdue = false;
     if (clubData) {
@@ -91,514 +53,24 @@ export function DashboardLayout() {
         }
     }
 
-    const hasAccess = (moduleKey: string) => {
-        if (!user) return false;
-        if (['OWNER', 'ADMIN', 'MASTER'].includes(user.role)) return true; // Master/Admin always has access
-
-        const perms = clubData?.settings?.permissions || {
-            // Fallback Defaults if not configured
-            SECRETARY: ['SECRETARY', 'MEMBERS', 'ATTENDANCE', 'EVENTS'],
-            TREASURER: ['TREASURY'],
-            COUNSELOR: ['MEMBERS', 'ATTENDANCE', 'EVENTS'],
-            INSTRUCTOR: ['CLASSES', 'MEMBERS', 'EVENTS'],
-        };
-
-        return perms[user.role]?.includes(moduleKey);
-    };
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
     return (
         <div className="min-h-screen bg-slate-100 flex relative">
-            {/* Mobile Sidebar Overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-
-            {/* Sidebar */}
-            <aside className={`
-        fixed lg:sticky top-0 left-0 z-50 w-64 h-screen bg-slate-900 text-white transition-transform duration-200 ease-in-out flex flex-col shrink-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
-                    <Link to="/dashboard" className="group">
-                        <img src="/logo.png" alt="Cantinho DBV" className="h-10 w-auto object-contain" />
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Início / Home</p>
-                    </Link>
-                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-
-                <nav className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-800">
-                    {user?.role === 'PARENT' ? (
-                        /* --- PARENT MENU --- */
-                        <div className="space-y-1">
-                            <Link
-                                to="/dashboard/alerts"
-                                className="flex items-center gap-3 px-4 py-2 text-red-400 font-bold hover:text-red-300 hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <div className="relative">
-                                    <AlertTriangle className="w-4 h-4" />
-                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                </div>
-                                <span>Alertas</span>
-                            </Link>
-                            <Link
-                                to="/dashboard/child-activities"
-                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <Users className="w-4 h-4" />
-                                <span>Atividades do Filho</span>
-                            </Link>
-                            <Link
-                                to="/dashboard/profile"
-                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <UserCircle className="w-4 h-4" />
-                                <span>Meu Perfil</span>
-                            </Link>
-                            <Link
-                                to="/dashboard/financial"
-                                className="flex items-center gap-3 px-4 py-2 text-emerald-400 font-bold hover:text-emerald-300 hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <DollarSign className="w-4 h-4" />
-                                <span>Minhas Finanças</span>
-                            </Link>
-                            <Link
-                                to="/dashboard"
-                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <LayoutDashboard className="w-4 h-4" />
-                                <span>Painel Principal</span>
-                            </Link>
-                            <Link
-                                to="/dashboard/ranking"
-                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                            >
-                                <Award className="w-4 h-4" />
-                                <span>Ranking Geral</span>
-                            </Link>
-                        </div>
-                    ) : (
-                        /* --- STANDARD MENU --- */
-                        <>
-                            {/* --- ADMINISTRAÇÃO GLOBAL (MASTER) --- */}
-                            {user?.role === 'MASTER' && (
-                                <div className="space-y-1 mb-2">
-                                    <div className="px-4 py-1 pb-2">
-                                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Administração Global</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Link
-                                            to="/dashboard/clubs"
-                                            className="flex items-center gap-3 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-sm font-bold shadow-sm"
-                                        >
-                                            <Globe className="w-4 h-4" />
-                                            <span>Gerenciar Clubes</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/hierarchy"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <Building2 className="w-4 h-4" />
-                                            <span>Hierarquia & Regiões</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/master-treasury"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <DollarSign className="w-4 h-4" />
-                                            <span>Tesouraria Master</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/system-messages"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <AlertTriangle className="w-4 h-4" />
-                                            <span>Mensagens Sistema</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/master-requirements"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <ListChecks className="w-4 h-4" />
-                                            <span>Gerenciar Requisitos</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/master-specialties"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <Award className="w-4 h-4" />
-                                            <span>Gerenciar Especialidades</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/club-assignment"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <Users className="w-4 h-4" />
-                                            <span>Atribuição de Clubes</span>
-                                        </Link>
-                                        <Link
-                                            to="/dashboard/achievements"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <Award className="w-4 h-4" />
-                                            <span>Gerenciar Conquistas</span>
-                                        </Link>
-                                    </div>
-                                </div>
-                            )}
-                            {/* --- GERAL --- */}
-                            <div className="space-y-1">
-                                <div
-                                    className="flex items-center justify-between px-4 py-1 pb-2 cursor-pointer group"
-                                    onClick={() => toggleSection('geral')}
-                                >
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Geral</p>
-                                    <ChevronRight className={`w-3 h-3 text-slate-600 transition-transform ${sectionsOpen.geral ? 'rotate-90' : ''}`} />
-                                </div>
-                                {sectionsOpen.geral && (
-                                    <div className="space-y-1">
-                                        {!isClubOverdue && (
-                                            <Link
-                                                to="/dashboard/store"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <ShoppingBag className="w-4 h-4" />
-                                                <span>Loja Virtual</span>
-                                            </Link>
-                                        )}
-                                        <Link
-                                            to="/dashboard"
-                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                        >
-                                            <LayoutDashboard className="w-4 h-4" />
-                                            <span>Painel Principal</span>
-                                        </Link>
-                                        {!isClubOverdue && (
-                                            <Link
-                                                to="/dashboard/ranking"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <Award className="w-4 h-4" />
-                                                <span>Ranking Geral</span>
-                                            </Link>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* --- MEU ACESSO --- */}
-                            {!isClubOverdue && (
-                                <div className="space-y-1">
-                                    <div
-                                        className="flex items-center justify-between px-4 py-1 pb-2 cursor-pointer group"
-                                        onClick={() => toggleSection('meuAcesso')}
-                                    >
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Meu Acesso</p>
-                                        <ChevronRight className={`w-3 h-3 text-slate-600 transition-transform ${sectionsOpen.meuAcesso ? 'rotate-90' : ''}`} />
-                                    </div>
-                                    {sectionsOpen.meuAcesso && (
-                                        <div className="space-y-1">
-                                            <Link
-                                                to="/dashboard/profile"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <UserCircle className="w-4 h-4" />
-                                                <span>Meu Perfil</span>
-                                            </Link>
-                                            <Link
-                                                to="/dashboard/requirements"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <ListChecks className="w-4 h-4" />
-                                                <span>Meus Requisitos</span>
-                                            </Link>
-                                            {['PARENT', 'OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '') && (
-                                                <Link
-                                                    to="/dashboard/family"
-                                                    className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                >
-                                                    <User className="w-4 h-4" />
-                                                    <span>Minha Família</span>
-                                                </Link>
-                                            )}
-                                            <Link
-                                                to="/dashboard/activities"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <Award className="w-4 h-4" />
-                                                <span>Minhas Atividades</span>
-                                            </Link>
-                                        </div>
-                                    )}
-                                </div>
-
-                            )}
-
-                            {/* --- GESTÃO (ADMIN) --- */}
-                            {!isClubOverdue && (['OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '') ||
-                                hasAccess('MEMBERS') || hasAccess('CLASSES') || hasAccess('ATTENDANCE') || hasAccess('EVENTS') || hasAccess('TREASURY') || hasAccess('SECRETARY') || hasAccess('APPROVALS')
-                            ) && (
-                                    <div className="space-y-1">
-                                        <div
-                                            className="flex items-center justify-between px-4 py-1 pb-2 cursor-pointer group"
-                                            onClick={() => toggleSection('gestao')}
-                                        >
-                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Gestão do Clube</p>
-                                            <ChevronRight className={`w-3 h-3 text-slate-600 transition-transform ${sectionsOpen.gestao ? 'rotate-90' : ''}`} />
-                                        </div>
-                                        {sectionsOpen.gestao && (
-                                            <div className="space-y-1">
-                                                {hasAccess('ATTENDANCE') && (
-                                                    <Link
-                                                        to="/dashboard/meetings"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <Calendar className="w-4 h-4" />
-                                                        <span>Chamada / Presença</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('CLASSES') && (
-                                                    <Link
-                                                        to="/dashboard/classes"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <BookOpen className="w-4 h-4" />
-                                                        <span>Classes</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('EVENTS') && (
-                                                    <Link
-                                                        to="/dashboard/events"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <Calendar className="w-4 h-4" />
-                                                        <span>Eventos</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('MEMBERS') && (
-                                                    <Link
-                                                        to="/dashboard/members"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <Users className="w-4 h-4" />
-                                                        <span>{user?.role === 'COUNSELOR' ? 'Minha Unidade' : 'Membros'}</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('TREASURY') && (
-                                                    <Link
-                                                        to="/dashboard/reports"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <BarChart className="w-4 h-4" />
-                                                        <span>Relatórios & Métricas</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('SECRETARY') && (
-                                                    <Link
-                                                        to="/dashboard/secretary"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <ListChecks className="w-4 h-4" />
-                                                        <span>Secretaria</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('APPROVALS') && (
-                                                    <Link
-                                                        to="/dashboard/approvals"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <ListChecks className="w-4 h-4" />
-                                                        <span>Solicitações (Aprovações)</span>
-                                                    </Link>
-                                                )}
-                                                {hasAccess('TREASURY') && (
-                                                    <Link
-                                                        to="/dashboard/treasury"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <DollarSign className="w-4 h-4" />
-                                                        <span>Tesouraria</span>
-                                                    </Link>
-                                                )}
-                                                {['OWNER', 'ADMIN', 'DIRECTOR'].includes(user?.role || '') && (
-                                                    <Link
-                                                        to="/dashboard/units"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <Shield className="w-4 h-4" />
-                                                        <span>Unidades</span>
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                            {/* --- ACOMPANHAMENTO (ADMIN) --- */}
-                            {!isClubOverdue && ['OWNER', 'ADMIN', 'INSTRUCTOR', 'COUNSELOR'].includes(user?.role || '') && (
-                                <div className="space-y-1">
-                                    <div
-                                        className="flex items-center justify-between px-4 py-1 pb-2 cursor-pointer group"
-                                        onClick={() => toggleSection('acompanhamento')}
-                                    >
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Acompanhamento</p>
-                                        <ChevronRight className={`w-3 h-3 text-slate-600 transition-transform ${sectionsOpen.acompanhamento ? 'rotate-90' : ''}`} />
-                                    </div>
-
-                                    {sectionsOpen.acompanhamento && (
-                                        <div className="space-y-1">
-                                            {/* Classes Retractable Menu */}
-                                            {/* Classes Link (Simplified) */}
-                                            <Link
-                                                to="/dashboard/classes"
-                                                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${location.pathname === '/dashboard/classes'
-                                                    ? 'bg-blue-600/20 text-blue-400'
-                                                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                                                    }`}
-                                            >
-                                                <Award className="w-4 h-4" />
-                                                <span>Progresso Classes</span>
-                                            </Link>
-
-                                            {/* Specialties Retractable Menu */}
-                                            <div>
-                                                <div
-                                                    className="flex items-center justify-between px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg cursor-pointer transition-all text-sm"
-                                                    onClick={() => setSpecialtiesOpen(!specialtiesOpen)}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <Award className="w-4 h-4" />
-                                                        <span>Progresso Especialid.</span>
-                                                    </div>
-                                                    <ChevronRight className={`w-3 h-3 transition-transform ${specialtiesOpen ? 'rotate-90' : ''}`} />
-                                                </div>
-                                                {specialtiesOpen && (
-                                                    <div className="ml-9 mt-1 space-y-1 border-l border-slate-800 pl-4">
-                                                        <Link
-                                                            to="/dashboard/specialties-dashboard"
-                                                            className="block py-1.5 text-xs text-blue-400 font-bold hover:text-blue-300 transition-colors"
-                                                        >
-                                                            Visão Geral (Painel)
-                                                        </Link>
-                                                        {[
-                                                            'ADRA',
-                                                            'Artes e Habilidades Manuais',
-                                                            'Atividades Agrícolas',
-                                                            'Atividades Missionárias e Comunitárias',
-                                                            'Atividades Profissionais',
-                                                            'Atividades Recreativas',
-                                                            'Ciência e Saúde',
-                                                            'Estudo da Natureza',
-                                                            'Habilidades Domésticas',
-                                                            'Mestrados de Especialidades'
-                                                        ].map(area => (
-                                                            <Link
-                                                                key={area}
-                                                                to={`/dashboard/specialties?area=${encodeURIComponent(area)}`}
-                                                                className="block py-1 text-xs text-slate-500 hover:text-white transition-colors"
-                                                            >
-                                                                {area}
-                                                            </Link>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* --- CONFIGURAÇÕES --- */}
-                            {['OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '') && (
-                                <div className="space-y-1 pb-4">
-                                    <div
-                                        className="flex items-center justify-between px-4 py-1 pb-2 cursor-pointer group"
-                                        onClick={() => toggleSection('config')}
-                                    >
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Configurações</p>
-                                        <ChevronRight className={`w-3 h-3 text-slate-600 transition-transform ${sectionsOpen.config ? 'rotate-90' : ''}`} />
-                                    </div>
-                                    {sectionsOpen.config && (
-                                        <div className="space-y-1">
-                                            {/* Master Link */}
-                                            {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER' || user?.role === 'OWNER') && (
-                                                <>
-                                                    <Link
-                                                        to="/dashboard/system-messages"
-                                                        className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                    >
-                                                        <AlertTriangle className="h-4 w-4" />
-                                                        <span className="font-medium">Mensagens do Sistema</span>
-                                                    </Link>
-                                                    {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
-                                                        <Link
-                                                            to="/dashboard/hierarchy"
-                                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                        >
-                                                            <Building2 className="h-4 w-4" />
-                                                            <span className="font-medium">Gerenciar Assinatura</span>
-                                                        </Link>
-                                                    )}
-
-                                                    {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
-                                                        <Link
-                                                            to="/dashboard/master-treasury"
-                                                            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                                        >
-                                                            <DollarSign className="h-4 w-4" />
-                                                            <span className="font-medium">Tesouraria Master</span>
-                                                        </Link>
-                                                    )}
-                                                </>
-                                            )}
-
-                                            <Link
-                                                to="/dashboard/settings"
-                                                className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm"
-                                            >
-                                                <Shield className="w-4 h-4" />
-                                                <span>Configurações & Backup</span>
-                                            </Link>
-
-
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 shrink-0 space-y-2">
-                    <button
-                        onClick={() => window.open('https://api.whatsapp.com/send?phone=5511999999999', '_blank')}
-                        className="flex items-center gap-3 px-4 py-2 w-full text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all text-sm font-medium"
-                    >
-                        <HelpCircle className="w-4 h-4" />
-                        <span>Ajuda & Suporte</span>
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-2 w-full text-red-400 hover:text-red-300 hover:bg-slate-800/50 rounded-lg transition-all text-sm font-medium"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        <span>Sair da Conta</span>
-                    </button>
-                </div>
-            </aside>
+            <Sidebar mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
 
             {/* Main Content */}
+            {/* Added ml-24 lg:ml-24 to offset the fixed sidebar width. 
+                Wait, if sidebar is sticky/fixed, the flex container might behave differently. 
+                Let's use the 'flex' layout of the parent. 
+                The Sidebar component returns an 'aside' with fixed position. 
+                So we need to add left margin to main content equal to sidebar width (Level 1: w-24 = 6rem).
+                If Level 2 is open, it pushes content? MarketUP usually pushes content or overlays.
+                Let's make it push content by calculating width? No, that's complex with React state.
+                Simplest: Fixed Sidebar (Level 1) + Drawer (Level 2).
+                Main content should probably start after Level 1.
+            */}
+
             <div
-                className="flex-1 flex flex-col min-h-screen overflow-hidden transition-transform duration-200 ease-out"
+                className="flex-1 flex flex-col min-h-screen transition-all duration-200 ease-out lg:pl-24"
                 style={pullDistance > 0 ? { transform: `translateY(${Math.min(pullDistance, 100)}px)` } : undefined}
             >
                 {/* Pull Indicator */}
