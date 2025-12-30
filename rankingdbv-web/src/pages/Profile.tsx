@@ -44,7 +44,6 @@ export function Profile() {
     const [sex, setSex] = useState('');
     const [cpf, setCpf] = useState('');
     const [mobile, setMobile] = useState('');
-    const [role, setRole] = useState('');
 
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -66,7 +65,6 @@ export function Profile() {
             setEmail(fullUser.email || '');
             setClubId(fullUser.clubId || '');
             setUnitId(fullUser.unitId || '');
-            setRole(fullUser.role || '');
             setSex(fullUser.sex || '');
             setCpf(fullUser.cpf || '');
             setMobile(fullUser.mobile || '');
