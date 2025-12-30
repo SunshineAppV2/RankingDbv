@@ -272,14 +272,17 @@ export function Hierarchy() {
                                             <tr key={club.id} className="hover:bg-slate-50 transition-colors group">
                                                 <td className="p-4">
                                                     <div className="font-bold text-slate-800">{club.name}</div>
-                                                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                                        <Globe className="w-3 h-3" /> {club.union}
-                                                        <span className="text-slate-300">•</span>
-                                                        <MapPin className="w-3 h-3" /> {club.mission} / {club.region}
+                                                    <div className="flex flex-col gap-1 mt-1">
+                                                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                            <Globe className="w-3 h-3 text-slate-400" /> {club.union}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                            <MapPin className="w-3 h-3 text-slate-400" /> {club.mission} / {club.region}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className={`px-2 py-0.5 rounded textxs font-bold border ${statusColorClass} text-[10px]`}>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColorClass}`}>
                                                         {statusText}
                                                     </span>
                                                 </td>
@@ -290,8 +293,10 @@ export function Hierarchy() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 font-medium">
-                                                    {club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : '-'}
-                                                    {isWarning && <span className="ml-2 text-xs text-yellow-600 font-bold">({daysTo} dias)</span>}
+                                                    <div className="flex flex-col">
+                                                        <span>{club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : '-'}</span>
+                                                        {isWarning && <span className="text-xs text-yellow-600 font-bold mt-0.5">({daysTo} dias)</span>}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex flex-col items-center">
