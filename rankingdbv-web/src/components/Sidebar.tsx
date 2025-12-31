@@ -80,9 +80,13 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
         return perms[user.role]?.includes(moduleKey);
     };
 
-    // --- Menu Construction ---
     const getMenuItems = (): MenuItem[] => {
         const items: MenuItem[] = [];
+
+        // Detect roles
+        const isMaster = user?.role === 'MASTER' || user?.email === 'master@cantinhodbv.com';
+        const isPureCoordinator = ['COORDINATOR_REGIONAL', 'COORDINATOR_DISTRICT', 'COORDINATOR_AREA'].includes(user?.role || '');
+        const isCoordinator = isMaster || isPureCoordinator || user?.role === 'OWNER';
 
         // 1. INÍCIO
         items.push({
@@ -95,19 +99,15 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
         // 2. MEU ACESSO (Personal)
         const accessSubItems: MenuItem[] = [
             { id: 'profile', label: 'Meu Perfil', icon: UserCircle, path: '/dashboard/profile' },
-            { id: 'requirements', label: 'Meus Requisitos', icon: ListChecks, path: '/dashboard/requirements' },
-            { id: 'my-activities', label: 'Minhas Atividades', icon: Award, path: '/dashboard/activities' },
         ];
+
+        if (!isPureCoordinator) {
+            accessSubItems.push({ id: 'requirements', label: 'Meus Requisitos', icon: ListChecks, path: '/dashboard/requirements' });
+            accessSubItems.push({ id: 'my-activities', label: 'Minhas Atividades', icon: Award, path: '/dashboard/activities' });
+        }
+
         if (['PARENT', 'OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '')) {
             accessSubItems.push({ id: 'family', label: 'Minha Família', icon: Users, path: '/dashboard/family' });
-        }
-        if (user?.role === 'PARENT') {
-            items.push({
-                id: 'alerts',
-                label: 'ALERTAS',
-                icon: AlertTriangle,
-                path: '/dashboard/alerts'
-            })
         }
 
         items.push({
@@ -117,30 +117,39 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
             subItems: accessSubItems
         });
 
-
-        // 3. GESTÃO (Management)
-        const managementSubItems: MenuItem[] = [];
-        if (hasAccess('MEMBERS')) managementSubItems.push({ id: 'members', label: user?.role === 'COUNSELOR' ? 'Minha Unidade' : 'Membros', icon: Users, path: '/dashboard/members' });
-        if (hasAccess('CLASSES')) managementSubItems.push({ id: 'classes', label: 'Classes', icon: BookOpen, path: '/dashboard/classes' });
-        if (hasAccess('EVENTS')) managementSubItems.push({ id: 'events', label: 'Eventos', icon: Calendar, path: '/dashboard/events' });
-        if (hasAccess('ATTENDANCE')) managementSubItems.push({ id: 'meetings', label: 'Chamada', icon: ListChecks, path: '/dashboard/meetings' });
-        if (hasAccess('SECRETARY')) managementSubItems.push({ id: 'secretary', label: 'Secretaria', icon: FileText, path: '/dashboard/secretary' });
-        if (hasAccess('APPROVALS')) managementSubItems.push({ id: 'approvals', label: 'Aprovações', icon: ListChecks, path: '/dashboard/approvals' });
-        if (['OWNER', 'ADMIN', 'DIRECTOR'].includes(user?.role || '')) {
-            managementSubItems.push({ id: 'units', label: 'Unidades', icon: Shield, path: '/dashboard/units' });
+        if (user?.role === 'PARENT') {
+            items.push({
+                id: 'alerts',
+                label: 'ALERTAS',
+                icon: AlertTriangle,
+                path: '/dashboard/alerts'
+            })
         }
 
-        if (managementSubItems.length > 0) {
-            items.push({
-                id: 'management',
-                label: 'GESTÃO',
-                icon: Building2,
-                subItems: managementSubItems
-            });
+        // 3. GESTÃO (Management) - Hide for Pure Coordinators
+        if (!isPureCoordinator) {
+            const managementSubItems: MenuItem[] = [];
+            if (hasAccess('MEMBERS')) managementSubItems.push({ id: 'members', label: user?.role === 'COUNSELOR' ? 'Minha Unidade' : 'Membros', icon: Users, path: '/dashboard/members' });
+            if (hasAccess('CLASSES')) managementSubItems.push({ id: 'classes', label: 'Classes', icon: BookOpen, path: '/dashboard/classes' });
+            if (hasAccess('EVENTS')) managementSubItems.push({ id: 'events', label: 'Eventos', icon: Calendar, path: '/dashboard/events' });
+            if (hasAccess('ATTENDANCE')) managementSubItems.push({ id: 'meetings', label: 'Chamada', icon: ListChecks, path: '/dashboard/meetings' });
+            if (hasAccess('SECRETARY')) managementSubItems.push({ id: 'secretary', label: 'Secretaria', icon: FileText, path: '/dashboard/secretary' });
+            if (hasAccess('APPROVALS')) managementSubItems.push({ id: 'approvals', label: 'Aprovações', icon: ListChecks, path: '/dashboard/approvals' });
+            if (['OWNER', 'ADMIN', 'DIRECTOR'].includes(user?.role || '')) {
+                managementSubItems.push({ id: 'units', label: 'Unidades', icon: Shield, path: '/dashboard/units' });
+            }
+
+            if (managementSubItems.length > 0) {
+                items.push({
+                    id: 'management',
+                    label: 'GESTÃO',
+                    icon: Building2,
+                    subItems: managementSubItems
+                });
+            }
         }
 
         // 3.5 COORDENAÇÃO (Coordinator Section)
-        const isCoordinator = ['MASTER', 'OWNER', 'COORDINATOR_REGIONAL', 'COORDINATOR_DISTRICT', 'COORDINATOR_AREA'].includes(user?.role || '');
         if (isCoordinator) {
             const coordinatorSubItems: MenuItem[] = [
                 { id: 'regional-ranking', label: 'Ranking Regional', icon: Award, path: '/dashboard/regional-ranking' }
@@ -159,18 +168,20 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
             });
         }
 
-        // 4. FINANCEIRO
-        const financialSubItems: MenuItem[] = [];
-        financialSubItems.push({ id: 'my-finance', label: 'Minhas Finanças', icon: DollarSign, path: '/dashboard/financial' });
-        if (hasAccess('TREASURY')) {
-            financialSubItems.push({ id: 'treasury', label: 'Tesouraria', icon: BarChart, path: '/dashboard/treasury' });
+        // 4. FINANCEIRO - Hide for Pure Coordinators
+        if (!isPureCoordinator) {
+            const financialSubItems: MenuItem[] = [];
+            financialSubItems.push({ id: 'my-finance', label: 'Minhas Finanças', icon: DollarSign, path: '/dashboard/financial' });
+            if (hasAccess('TREASURY')) {
+                financialSubItems.push({ id: 'treasury', label: 'Tesouraria', icon: BarChart, path: '/dashboard/treasury' });
+            }
+            items.push({
+                id: 'financial',
+                label: 'FINANCEIRO',
+                icon: DollarSign,
+                subItems: financialSubItems
+            });
         }
-        items.push({
-            id: 'financial',
-            label: 'FINANCEIRO',
-            icon: DollarSign,
-            subItems: financialSubItems
-        });
 
         // 5. RELATÓRIOS / RANKING
         const reportsSubItems: MenuItem[] = [
@@ -189,20 +200,22 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
             subItems: reportsSubItems
         });
 
-        // 6. LOJA
-        items.push({
-            id: 'store',
-            label: 'LOJA',
-            icon: ShoppingBag,
-            path: '/dashboard/store'
-        });
+        // 6. LOJA - Hide for Pure Coordinators
+        if (!isPureCoordinator) {
+            items.push({
+                id: 'store',
+                label: 'LOJA',
+                icon: ShoppingBag,
+                path: '/dashboard/store'
+            });
+        }
 
         // 7. CONFIGURAÇÕES (Admin/Master)
         if (['OWNER', 'ADMIN', 'MASTER'].includes(user?.role || '')) {
             const configSubItems: MenuItem[] = [];
             configSubItems.push({ id: 'settings', label: 'Configurações', icon: Settings, path: '/dashboard/settings' });
 
-            if (user?.role === 'MASTER' || user?.email === 'master@cantinhodbv.com') {
+            if (isMaster) {
                 configSubItems.push({ id: 'master-clubs', label: 'Gerenciar Clubes', icon: Globe, path: '/dashboard/clubs' });
                 configSubItems.push({ id: 'master-hierarchy', label: 'Hierarquia', icon: Globe, path: '/dashboard/hierarchy' });
                 configSubItems.push({ id: 'master-treasury', label: 'Tesouraria Master', icon: DollarSign, path: '/dashboard/master-treasury' });
