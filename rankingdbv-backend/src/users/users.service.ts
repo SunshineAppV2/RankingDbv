@@ -1,4 +1,4 @@
-﻿import { Injectable, UnauthorizedException, Inject, forwardRef } from '@nestjs/common';
+﻿import { Injectable, UnauthorizedException, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Prisma } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -431,8 +431,18 @@ export class UsersService {
 
     // Strict ACL Check for Update
     if (currentUser) {
-      const userToUpdate = await this.prisma.user.findUnique({ where: { id } });
-      if (!userToUpdate) throw new Error('Usuário não encontrado');
+      let userToUpdate = await this.prisma.user.findUnique({ where: { id } });
+
+      // Fallback: If ID not found (e.g. Frontend sent UID), try finding by Context User ID
+      if (!userToUpdate && currentUser.userId) {
+        console.warn(`[Update] User ${id} not found. Trying fallback to context ID ${currentUser.userId}...`);
+        userToUpdate = await this.prisma.user.findUnique({ where: { id: currentUser.userId } });
+        if (userToUpdate) {
+          id = currentUser.userId; // Correct the ID for subsequent update call
+        }
+      }
+
+      if (!userToUpdate) throw new NotFoundException('Usuário não encontrado');
 
       const isMaster = currentUser.email === 'master@cantinhodbv.com';
       const isSelf = currentUser.userId === id;
