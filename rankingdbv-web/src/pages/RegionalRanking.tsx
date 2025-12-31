@@ -14,13 +14,22 @@ interface RankingClub {
     memberCount: number;
 }
 
+import { useAuth } from '../contexts/AuthContext';
+
 export const RegionalRanking: React.FC = () => {
+    const { user } = useAuth();
     const { data: clubs, isLoading } = useQuery<RankingClub[]>({
-        queryKey: ['regional-ranking'],
+        queryKey: ['regional-ranking', user?.region, user?.district, user?.association],
         queryFn: async () => {
-            const res = await api.get('/ranking-regional');
+            const params = new URLSearchParams();
+            if (user?.role === 'COORDINATOR_REGIONAL' && user?.region) params.append('region', user.region);
+            if (user?.role === 'COORDINATOR_DISTRICT' && user?.district) params.append('district', user.district);
+            if (user?.role === 'COORDINATOR_AREA' && user?.association) params.append('association', user.association);
+
+            const res = await api.get(`/ranking-regional?${params.toString()}`);
             return res.data;
-        }
+        },
+        enabled: !!user
     });
 
     if (isLoading) {
@@ -71,9 +80,9 @@ export const RegionalRanking: React.FC = () => {
                                 <tr key={club.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${index === 0 ? 'bg-amber-100 text-amber-600' :
-                                                index === 1 ? 'bg-slate-200 text-slate-600' :
-                                                    index === 2 ? 'bg-orange-100 text-orange-600' :
-                                                        'bg-slate-50 text-slate-400'
+                                            index === 1 ? 'bg-slate-200 text-slate-600' :
+                                                index === 2 ? 'bg-orange-100 text-orange-600' :
+                                                    'bg-slate-50 text-slate-400'
                                             }`}>
                                             {index + 1}
                                         </div>
@@ -101,8 +110,8 @@ export const RegionalRanking: React.FC = () => {
                                             <div className="flex-1 h-2 bg-slate-100 rounded-full w-24 overflow-hidden">
                                                 <div
                                                     className={`h-full rounded-full transition-all duration-1000 ${club.percentage >= 90 ? 'bg-green-500' :
-                                                            club.percentage >= 50 ? 'bg-indigo-500' :
-                                                                'bg-red-400'
+                                                        club.percentage >= 50 ? 'bg-indigo-500' :
+                                                            'bg-red-400'
                                                         }`}
                                                     style={{ width: `${club.percentage}%` }}
                                                 />
