@@ -219,11 +219,8 @@ export function HierarchySelector({ value, onChange, readOnly = false }: Hierarc
                     <div className="relative">
                         <Combobox.Input
                             className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                            onChange={(event) => {
-                                const val = event.target.value;
-                                setQueryRegion(val);
-                                handleChange('region', val);
-                            }}
+                            onChange={(event) => setQueryRegion(event.target.value)}
+                            onBlur={(event) => handleChange('region', event.target.value)}
                             displayValue={(val: string) => val}
                             placeholder={value.association ? "R1, Região 1..." : "Selecione a Associação primeiro"}
                         />
@@ -284,11 +281,8 @@ export function HierarchySelector({ value, onChange, readOnly = false }: Hierarc
                     <div className="relative">
                         <Combobox.Input
                             className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                            onChange={(event) => {
-                                const val = event.target.value;
-                                setQueryDistrict(val);
-                                handleChange('district', val);
-                            }}
+                            onChange={(event) => setQueryDistrict(event.target.value)}
+                            onBlur={(event) => handleChange('district', event.target.value)}
                             displayValue={(val: string) => val}
                             placeholder={value.region ? "Distrito Central..." : "Selecione a Região primeiro"}
                         />
