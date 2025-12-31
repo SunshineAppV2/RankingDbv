@@ -80,7 +80,9 @@ export function MemberForm({ isOpen, onClose, onSubmit, initialData, units, club
                                     {Array.from(new Map(clubs.map((c: any) => [c.name, c])).values())
                                         .sort((a: any, b: any) => a.name.localeCompare(b.name))
                                         .map((c: any) => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                            <option key={c.id} value={c.id}>
+                                                {c.name} {c.association ? `(${c.association})` : c.mission ? `(${c.mission})` : ''}
+                                            </option>
                                         ))}
                                 </select>
                             </div>
