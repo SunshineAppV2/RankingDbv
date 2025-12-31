@@ -296,240 +296,241 @@ export function Hierarchy() {
             </div>
 
             {/* --- CONTENT --- */}
-            <>
-                {/* DESKTOP TABLE */}
-                <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                                    <th className="p-4 font-bold">Clube / Localização</th>
-                                    <th className="p-4 font-bold">Status</th>
-                                    <th className="p-4 font-bold">Plano</th>
-                                    <th className="p-4 font-bold">Vencimento</th>
-                                    <th className="p-4 font-bold text-center">Membros</th>
-                                    <th className="p-4 font-bold text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-                                {loadingClubs ? (
-                                    <tr><td colSpan={6} className="p-8 text-center text-slate-500">Carregando dados...</td></tr>
-                                ) : filteredClubs.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-8 text-center text-slate-500">Nenhum clube encontrado.</td></tr>
-                                ) : (
-                                    filteredClubs.map((club: any) => {
-                                        // Calc status color logic duplicated? Better extract if complex.
-                                        // Reusing logic inline for now as it's simple.
-                                        const daysTo = club.nextBillingDate ? differenceInDays(new Date(club.nextBillingDate), new Date()) : 999;
-                                        const isExpired = club.subscriptionStatus === 'EXPIRED' || (club.nextBillingDate && daysTo < 0);
-                                        const isWarning = !isExpired && daysTo <= 30 && club.nextBillingDate;
+            {viewMode === 'table' ? (
+                <>
+                    {/* DESKTOP TABLE */}
+                    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                                        <th className="p-4 font-bold">Clube / Localização</th>
+                                        <th className="p-4 font-bold">Status</th>
+                                        <th className="p-4 font-bold">Plano</th>
+                                        <th className="p-4 font-bold">Vencimento</th>
+                                        <th className="p-4 font-bold text-center">Membros</th>
+                                        <th className="p-4 font-bold text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                                    {loadingClubs ? (
+                                        <tr><td colSpan={6} className="p-8 text-center text-slate-500">Carregando dados...</td></tr>
+                                    ) : filteredClubs.length === 0 ? (
+                                        <tr><td colSpan={6} className="p-8 text-center text-slate-500">Nenhum clube encontrado.</td></tr>
+                                    ) : (
+                                        filteredClubs.map((club: any) => {
+                                            // Calc status color logic duplicated? Better extract if complex.
+                                            // Reusing logic inline for now as it's simple.
+                                            const daysTo = club.nextBillingDate ? differenceInDays(new Date(club.nextBillingDate), new Date()) : 999;
+                                            const isExpired = club.subscriptionStatus === 'EXPIRED' || (club.nextBillingDate && daysTo < 0);
+                                            const isWarning = !isExpired && daysTo <= 30 && club.nextBillingDate;
 
-                                        const statusColorClass = isExpired ? 'bg-red-100 text-red-700 border-red-200'
-                                            : isWarning ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                                                : 'bg-green-100 text-green-700 border-green-200';
-                                        const statusText = isExpired ? 'VENCIDO' : isWarning ? 'VENCE EM BREVE' : 'ATIVO';
+                                            const statusColorClass = isExpired ? 'bg-red-100 text-red-700 border-red-200'
+                                                : isWarning ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                                    : 'bg-green-100 text-green-700 border-green-200';
+                                            const statusText = isExpired ? 'VENCIDO' : isWarning ? 'VENCE EM BREVE' : 'ATIVO';
 
-                                        return (
-                                            <tr key={club.id} className="hover:bg-slate-50 transition-colors group">
-                                                <td className="p-4">
-                                                    <div className="font-bold text-slate-800">{club.name}</div>
-                                                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                                        <Globe className="w-3 h-3" /> {club.union}
-                                                        <span className="text-slate-300">•</span>
-                                                        <MapPin className="w-3 h-3" /> {club.mission} / {club.region}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColorClass}`}>
-                                                        {statusText}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-1">
-                                                        {club.planTier === 'FREE' && <span className="bg-slate-100 text-slate-600 px-2 rounded text-xs font-bold">GRÁTIS</span>}
-                                                        {club.planTier === 'PREMIUM' && <span className="bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 px-2 rounded text-xs font-bold">PREMIUM</span>}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 font-medium">
-                                                    {club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : '-'}
-                                                    {isWarning && <span className="ml-2 text-xs text-yellow-600 font-bold">({daysTo} dias)</span>}
-                                                </td>
-                                                <td className="p-4 text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <span className="bg-slate-100 px-2 py-1 rounded-full text-xs font-bold text-slate-600 mb-1" title="Membros Pagantes (Ativos)">
-                                                            {club.activeMembers || 0} / {club.memberLimit || '∞'}
+                                            return (
+                                                <tr key={club.id} className="hover:bg-slate-50 transition-colors group">
+                                                    <td className="p-4">
+                                                        <div className="font-bold text-slate-800">{club.name}</div>
+                                                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                                            <Globe className="w-3 h-3" /> {club.union}
+                                                            <span className="text-slate-300">•</span>
+                                                            <MapPin className="w-3 h-3" /> {club.mission} / {club.region}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColorClass}`}>
+                                                            {statusText}
                                                         </span>
-                                                        {club.freeMembers > 0 && (
-                                                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-100" title="Pais / Isentos">
-                                                                + {club.freeMembers} Pais
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-1">
+                                                            {club.planTier === 'FREE' && <span className="bg-slate-100 text-slate-600 px-2 rounded text-xs font-bold">GRÁTIS</span>}
+                                                            {club.planTier === 'PREMIUM' && <span className="bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 px-2 rounded text-xs font-bold">PREMIUM</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 font-medium">
+                                                        {club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : '-'}
+                                                        {isWarning && <span className="ml-2 text-xs text-yellow-600 font-bold">({daysTo} dias)</span>}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="bg-slate-100 px-2 py-1 rounded-full text-xs font-bold text-slate-600 mb-1" title="Membros Pagantes (Ativos)">
+                                                                {club.activeMembers || 0} / {club.memberLimit || '∞'}
                                                             </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button onClick={() => openPaymentModal(club)} className="text-green-600 border border-green-200 bg-green-50 px-2 py-1 rounded hover:bg-green-100" title="Cobrar"><DollarSign className="w-4 h-4" /></button>
-                                                        <button onClick={() => setEditingSubscription(club)} className="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100" title="Assinatura"><Settings className="w-4 h-4" /></button>
-                                                        <button onClick={() => setEditingClubData(club)} className="text-slate-400 hover:text-amber-600 p-1.5" title="Editar"><Pencil className="w-4 h-4" /></button>
-                                                        <button onClick={() => handleDeleteClub(club.id, club.name)} className="text-slate-400 hover:text-red-600 p-1.5" title="Excluir"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
+                                                            {club.freeMembers > 0 && (
+                                                                <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-100" title="Pais / Isentos">
+                                                                    + {club.freeMembers} Pais
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button onClick={() => openPaymentModal(club)} className="text-green-600 border border-green-200 bg-green-50 px-2 py-1 rounded hover:bg-green-100" title="Cobrar"><DollarSign className="w-4 h-4" /></button>
+                                                            <button onClick={() => setEditingSubscription(club)} className="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100" title="Assinatura"><Settings className="w-4 h-4" /></button>
+                                                            <button onClick={() => setEditingClubData(club)} className="text-slate-400 hover:text-amber-600 p-1.5" title="Editar"><Pencil className="w-4 h-4" /></button>
+                                                            <button onClick={() => handleDeleteClub(club.id, club.name)} className="text-slate-400 hover:text-red-600 p-1.5" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
 
-                {/* MOBILE CARDS */}
-                <div className="md:hidden space-y-3">
-                    {loadingClubs ? (
-                        <p className="text-center text-slate-500 py-4">Carregando...</p>
-                    ) : filteredClubs.length === 0 ? (
-                        <p className="text-center text-slate-500 py-4">Nenhum clube encontrado.</p>
-                    ) : (
-                        filteredClubs.map((club: any) => {
-                            const daysTo = club.nextBillingDate ? differenceInDays(new Date(club.nextBillingDate), new Date()) : 999;
-                            const isExpired = club.subscriptionStatus === 'EXPIRED' || (club.nextBillingDate && daysTo < 0);
-                            const isWarning = !isExpired && daysTo <= 30 && club.nextBillingDate;
-                            const statusColorClass = isExpired ? 'bg-red-100 text-red-700 border-red-200'
-                                : isWarning ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                                    : 'bg-green-100 text-green-700 border-green-200';
-                            const statusText = isExpired ? 'VENCIDO' : isWarning ? 'VENCE EM BREVE' : 'ATIVO';
+                    {/* MOBILE CARDS */}
+                    <div className="md:hidden space-y-3">
+                        {loadingClubs ? (
+                            <p className="text-center text-slate-500 py-4">Carregando...</p>
+                        ) : filteredClubs.length === 0 ? (
+                            <p className="text-center text-slate-500 py-4">Nenhum clube encontrado.</p>
+                        ) : (
+                            filteredClubs.map((club: any) => {
+                                const daysTo = club.nextBillingDate ? differenceInDays(new Date(club.nextBillingDate), new Date()) : 999;
+                                const isExpired = club.subscriptionStatus === 'EXPIRED' || (club.nextBillingDate && daysTo < 0);
+                                const isWarning = !isExpired && daysTo <= 30 && club.nextBillingDate;
+                                const statusColorClass = isExpired ? 'bg-red-100 text-red-700 border-red-200'
+                                    : isWarning ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                        : 'bg-green-100 text-green-700 border-green-200';
+                                const statusText = isExpired ? 'VENCIDO' : isWarning ? 'VENCE EM BREVE' : 'ATIVO';
 
-                            return (
-                                <div key={club.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 relative">
-                                    {/* Header: Name + Badge */}
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div>
-                                            <h3 className="font-bold text-slate-800 text-base">{club.name}</h3>
-                                            <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-2">
-                                                <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {club.union}</span>
-                                                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {club.mission}</span>
+                                return (
+                                    <div key={club.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 relative">
+                                        {/* Header: Name + Badge */}
+                                        <div className="flex justify-between items-start gap-2">
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-base">{club.name}</h3>
+                                                <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-2">
+                                                    <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {club.union}</span>
+                                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {club.mission}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColorClass} shrink-0`}>
-                                            {statusText}
-                                        </span>
-                                    </div>
-
-                                    {/* Stats Row */}
-                                    <div className="flex items-center justify-between text-sm py-2 border-t border-b border-slate-50">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Vencimento</span>
-                                            <span className={`font-medium ${isWarning ? 'text-yellow-600' : 'text-slate-700'}`}>
-                                                {club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : 'Vitalício'}
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColorClass} shrink-0`}>
+                                                {statusText}
                                             </span>
                                         </div>
-                                        <div className="flex flex-col text-right">
-                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Membros</span>
-                                            <span className="font-medium text-slate-700">{club.activeMembers || 0} / {club.memberLimit || '∞'}</span>
-                                        </div>
-                                    </div>
 
-                                    {/* Actions Row (Big Buttons) */}
-                                    <div className="grid grid-cols-4 gap-2 pt-1">
-                                        <button onClick={() => openPaymentModal(club)} className="col-span-2 flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 p-2 rounded-lg font-bold text-xs hover:bg-green-100">
-                                            <DollarSign className="w-4 h-4" /> Cobrar
-                                        </button>
-                                        <button onClick={() => setEditingSubscription(club)} className="col-span-2 flex items-center justify-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 p-2 rounded-lg font-bold text-xs hover:bg-blue-100">
-                                            <Settings className="w-4 h-4" /> Assinatura
-                                        </button>
-                                        <button onClick={() => setEditingClubData(club)} className="col-span-2 flex items-center justify-center gap-1 bg-slate-50 text-slate-600 border border-slate-200 p-2 rounded-lg font-bold text-xs hover:bg-slate-100">
-                                            <Pencil className="w-4 h-4" /> Editar
-                                        </button>
-                                        <button onClick={() => handleDeleteClub(club.id, club.name)} className="col-span-2 flex items-center justify-center gap-1 bg-red-50 text-red-600 border border-red-200 p-2 rounded-lg font-bold text-xs hover:bg-red-100">
-                                            <Trash2 className="w-4 h-4" /> Excluir
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </>
-            ) : (
-            /* TREE VIEW (Existing Logic) */
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-                {/* Reuse exact same tree rendering logic... */}
-                {Object.entries(tree as TreeData).map(([union, missions]) => (
-                    <div key={union} className="border-l-2 border-blue-200 pl-4 group/union">
-                        <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
-                            <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(union)}>
-                                {expanded[union] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                                <Globe className="w-5 h-5 text-blue-600" />
-                                <span className="font-bold text-lg text-slate-800">{union}</span>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover/union:opacity-100 transition-opacity">
-                                <button onClick={() => setEditingNode({ level: 'union', oldName: union, newName: union })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
-                                <button onClick={() => handleDeleteNode('union', union)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                        </div>
-
-                        {expanded[union] && (
-                            <div className="mt-2 ml-4 space-y-2">
-                                {Object.entries(missions).map(([mission, regions]) => (
-                                    <div key={mission} className="border-l-2 border-green-200 pl-4 group/mission">
-                                        <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
-                                            <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(`${union}-${mission}`)}>
-                                                {expanded[`${union}-${mission}`] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                                                <MapPin className="w-5 h-5 text-green-600" />
-                                                <span className="font-semibold text-slate-700">{mission}</span>
+                                        {/* Stats Row */}
+                                        <div className="flex items-center justify-between text-sm py-2 border-t border-b border-slate-50">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-slate-400 uppercase font-bold">Vencimento</span>
+                                                <span className={`font-medium ${isWarning ? 'text-yellow-600' : 'text-slate-700'}`}>
+                                                    {club.nextBillingDate ? format(new Date(club.nextBillingDate), 'dd/MM/yyyy') : 'Vitalício'}
+                                                </span>
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover/mission:opacity-100 transition-opacity">
-                                                <button onClick={() => setEditingNode({ level: 'mission', oldName: mission, newName: mission })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
-                                                <button onClick={() => handleDeleteNode('mission', mission)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-[10px] text-slate-400 uppercase font-bold">Membros</span>
+                                                <span className="font-medium text-slate-700">{club.activeMembers || 0} / {club.memberLimit || '∞'}</span>
                                             </div>
                                         </div>
 
-                                        {expanded[`${union}-${mission}`] && (
-                                            <div className="mt-2 ml-4 space-y-2">
-                                                {Object.entries(regions).map(([region, clubs]) => (
-                                                    <div key={region} className="border-l-2 border-orange-200 pl-4 group/region">
-                                                        <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
-                                                            <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(`${union}-${mission}-${region}`)}>
-                                                                {expanded[`${union}-${mission}-${region}`] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                                                                <div className="w-4 h-4 rounded-full border-2 border-orange-400"></div>
-                                                                <span className="font-medium text-slate-600">{region}</span>
-                                                                <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{clubs.length} clubes</span>
-                                                            </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover/region:opacity-100 transition-opacity">
-                                                                <button onClick={() => setEditingNode({ level: 'region', oldName: region, newName: region })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
-                                                                <button onClick={() => handleDeleteNode('region', region)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                                                            </div>
-                                                        </div>
-                                                        {expanded[`${union}-${mission}-${region}`] && (
-                                                            <div className="mt-2 ml-8 grid gap-2">
-                                                                {clubs.map(club => (
-                                                                    <div key={club.id} className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded border border-slate-100 group">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <Building2 className="w-4 h-4 text-slate-400" />
-                                                                            <span className="text-sm text-slate-700">{club.name}</span>
-                                                                        </div>
-                                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                            <button onClick={() => setEditingSubscription(club as any)} className="p-1 text-slate-400 hover:text-blue-600 transition-colors" title="Assinatura"><Settings className="w-4 h-4" /></button>
-                                                                            <button onClick={() => setEditingClubData(club as any)} className="p-1 text-slate-400 hover:text-amber-600 transition-colors" title="Trocar Diretor"><UserCog className="w-4 h-4" /></button>
-                                                                            <button onClick={() => setEditingClubData(club as any)} className="p-1 text-slate-400 hover:text-blue-600 transition-colors" title="Editar Clube"><Pencil className="w-4 h-4" /></button>
-                                                                            <button onClick={() => handleDeleteClub(club.id, club.name)} className="p-1 text-slate-400 hover:text-red-600 transition-colors" title="Excluir Clube"><Trash2 className="w-4 h-4" /></button>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                        {/* Actions Row (Big Buttons) */}
+                                        <div className="grid grid-cols-4 gap-2 pt-1">
+                                            <button onClick={() => openPaymentModal(club)} className="col-span-2 flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 p-2 rounded-lg font-bold text-xs hover:bg-green-100">
+                                                <DollarSign className="w-4 h-4" /> Cobrar
+                                            </button>
+                                            <button onClick={() => setEditingSubscription(club)} className="col-span-2 flex items-center justify-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 p-2 rounded-lg font-bold text-xs hover:bg-blue-100">
+                                                <Settings className="w-4 h-4" /> Assinatura
+                                            </button>
+                                            <button onClick={() => setEditingClubData(club)} className="col-span-2 flex items-center justify-center gap-1 bg-slate-50 text-slate-600 border border-slate-200 p-2 rounded-lg font-bold text-xs hover:bg-slate-100">
+                                                <Pencil className="w-4 h-4" /> Editar
+                                            </button>
+                                            <button onClick={() => handleDeleteClub(club.id, club.name)} className="col-span-2 flex items-center justify-center gap-1 bg-red-50 text-red-600 border border-red-200 p-2 rounded-lg font-bold text-xs hover:bg-red-100">
+                                                <Trash2 className="w-4 h-4" /> Excluir
+                                            </button>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                );
+                            })
                         )}
                     </div>
-                ))}
-                {Object.keys(tree).length === 0 && <p className="text-slate-500 italic">Nenhum clube encontrado.</p>}
-            </div>
+                </>
+            ) : (
+                /* TREE VIEW (Existing Logic) */
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+                    {/* Reuse exact same tree rendering logic... */}
+                    {Object.entries(tree as TreeData).map(([union, missions]) => (
+                        <div key={union} className="border-l-2 border-blue-200 pl-4 group/union">
+                            <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
+                                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(union)}>
+                                    {expanded[union] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                    <Globe className="w-5 h-5 text-blue-600" />
+                                    <span className="font-bold text-lg text-slate-800">{union}</span>
+                                </div>
+                                <div className="flex gap-1 opacity-0 group-hover/union:opacity-100 transition-opacity">
+                                    <button onClick={() => setEditingNode({ level: 'union', oldName: union, newName: union })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteNode('union', union)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+
+                            {expanded[union] && (
+                                <div className="mt-2 ml-4 space-y-2">
+                                    {Object.entries(missions).map(([mission, regions]) => (
+                                        <div key={mission} className="border-l-2 border-green-200 pl-4 group/mission">
+                                            <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
+                                                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(`${union}-${mission}`)}>
+                                                    {expanded[`${union}-${mission}`] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                                    <MapPin className="w-5 h-5 text-green-600" />
+                                                    <span className="font-semibold text-slate-700">{mission}</span>
+                                                </div>
+                                                <div className="flex gap-1 opacity-0 group-hover/mission:opacity-100 transition-opacity">
+                                                    <button onClick={() => setEditingNode({ level: 'mission', oldName: mission, newName: mission })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleDeleteNode('mission', mission)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                                </div>
+                                            </div>
+
+                                            {expanded[`${union}-${mission}`] && (
+                                                <div className="mt-2 ml-4 space-y-2">
+                                                    {Object.entries(regions).map(([region, clubs]) => (
+                                                        <div key={region} className="border-l-2 border-orange-200 pl-4 group/region">
+                                                            <div className="flex items-center justify-between hover:bg-slate-50 p-2 rounded">
+                                                                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => toggle(`${union}-${mission}-${region}`)}>
+                                                                    {expanded[`${union}-${mission}-${region}`] ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                                                    <div className="w-4 h-4 rounded-full border-2 border-orange-400"></div>
+                                                                    <span className="font-medium text-slate-600">{region}</span>
+                                                                    <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{clubs.length} clubes</span>
+                                                                </div>
+                                                                <div className="flex gap-1 opacity-0 group-hover/region:opacity-100 transition-opacity">
+                                                                    <button onClick={() => setEditingNode({ level: 'region', oldName: region, newName: region })} className="p-1 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
+                                                                    <button onClick={() => handleDeleteNode('region', region)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                                                </div>
+                                                            </div>
+                                                            {expanded[`${union}-${mission}-${region}`] && (
+                                                                <div className="mt-2 ml-8 grid gap-2">
+                                                                    {clubs.map(club => (
+                                                                        <div key={club.id} className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded border border-slate-100 group">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Building2 className="w-4 h-4 text-slate-400" />
+                                                                                <span className="text-sm text-slate-700">{club.name}</span>
+                                                                            </div>
+                                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                <button onClick={() => setEditingSubscription(club as any)} className="p-1 text-slate-400 hover:text-blue-600 transition-colors" title="Assinatura"><Settings className="w-4 h-4" /></button>
+                                                                                <button onClick={() => setEditingClubData(club as any)} className="p-1 text-slate-400 hover:text-amber-600 transition-colors" title="Trocar Diretor"><UserCog className="w-4 h-4" /></button>
+                                                                                <button onClick={() => setEditingClubData(club as any)} className="p-1 text-slate-400 hover:text-blue-600 transition-colors" title="Editar Clube"><Pencil className="w-4 h-4" /></button>
+                                                                                <button onClick={() => handleDeleteClub(club.id, club.name)} className="p-1 text-slate-400 hover:text-red-600 transition-colors" title="Excluir Clube"><Trash2 className="w-4 h-4" /></button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {Object.keys(tree).length === 0 && <p className="text-slate-500 italic">Nenhum clube encontrado.</p>}
+                </div>
             )}
 
             {/* MODALS RZUSE */}
