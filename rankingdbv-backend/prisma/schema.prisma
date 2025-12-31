@@ -531,7 +531,7 @@ model SystemSetting {
 model Minute {
   id        String     @id @default(uuid())
   number    Int?       // Sequential number
-  year      Int
+  year      Int        @default(2025)
   title     String
   date      DateTime
   type      MinuteType @default(ORDINARIA)

@@ -27,8 +27,12 @@ export class PaymentsService implements OnApplicationBootstrap {
     async onApplicationBootstrap() {
         this.logger.log('Checking Payment Plans Configuration...');
         const plans = await this.getPlanIds();
-        if (!plans || plans.length === 0) {
-            this.logger.warn('No payment plans found. Auto-initializing Mercado Pago plans...');
+        // Check if plans exist AND if the first plan matches the new structure (Básico)
+        // Plans are stored as { key, id }. Key is sanitized reason.
+        const isCurrentStructure = plans && plans.some((p: any) => p.key && p.key.includes('básico'));
+
+        if (!plans || plans.length === 0 || !isCurrentStructure) {
+            this.logger.warn('Payment plans outdated or missing. Auto-initializing Mercado Pago plans...');
             await this.setupAllPlans();
         } else {
             this.logger.log('Payment plans already configured.');
@@ -45,10 +49,14 @@ export class PaymentsService implements OnApplicationBootstrap {
 
     async setupAllPlans() {
         const plans = [
-            { reason: 'Plano Mensal', amount: 39.90, frequency: 1, frequencyType: 'months' },
-            { reason: 'Plano Trimestral', amount: 109.90, frequency: 3, frequencyType: 'months' },
-            { reason: 'Plano Anual', amount: 399.90, frequency: 12, frequencyType: 'months' }
+            { reason: 'Plano Básico (Até 20)', amount: 19.90, frequency: 1, frequencyType: 'months' as const },
+            { reason: 'Plano Bronze (21-30)', amount: 29.90, frequency: 1, frequencyType: 'months' as const },
+            { reason: 'Plano Prata (31-100)', amount: 39.90, frequency: 1, frequencyType: 'months' as const },
+            { reason: 'Plano Ouro (101+)', amount: 59.90, frequency: 1, frequencyType: 'months' as const }
         ];
+
+        // Force clear old plans from settings to re-initialize
+        // In reality we should check if they exist on MP but for now we just create new ones
 
         const createdPlans: { key: string, id: string }[] = [];
         for (const p of plans) {

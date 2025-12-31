@@ -40,8 +40,9 @@ import { AdminAchievements } from './pages/admin/Achievements';
 import { MasterRequirements } from './pages/admin/MasterRequirements';
 import { MasterSpecialties } from './pages/admin/MasterSpecialties';
 import { RegionalRanking } from './pages/RegionalRanking';
-import { CoordinatorApprovals } from './pages/CoordinatorApprovals';
 import { RegionalDashboard } from './pages/reports/RegionalDashboard';
+import { SubscriptionPage } from './pages/SubscriptionPage';
+import { CoordinatorApprovals } from './pages/CoordinatorApprovals';
 
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -110,6 +111,11 @@ function App() {
                   <Route path="settings" element={<Settings />} />
                   <Route path="hierarchy" element={<Hierarchy />} />
                   <Route path="system-messages" element={<SystemMessages />} />
+                </Route>
+
+                {/* Subscription Route (Accessible potentially by Admin/Director/Owner) */}
+                <Route element={<ProtectedRoute allowedRoles={['MASTER', 'OWNER', 'ADMIN', 'DIRECTOR']} />}>
+                  <Route path="subscription" element={<SubscriptionPage />} />
                 </Route>
 
                 {/* Coordinator Routes */}

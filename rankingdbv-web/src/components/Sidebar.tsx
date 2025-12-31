@@ -17,7 +17,8 @@ import {
     AlertTriangle,
     Globe,
     BarChart,
-    BookOpen
+    BookOpen,
+    CreditCard
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/axios';
@@ -227,6 +228,21 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
                 label: 'CONFIG',
                 icon: Settings,
                 subItems: configSubItems
+            });
+        }
+
+        // 8. ASSINATURA (Conditional Link)
+        // Check local data or user status. Ideally we use clubData from query.
+        const subscriptionStatus = clubData?.subscriptionStatus;
+        const clubStatus = clubData?.status;
+        const isCritical = subscriptionStatus === 'OVERDUE' || clubStatus === 'SUSPENDED' || clubStatus === 'INACTIVE';
+
+        if (isCritical && ['OWNER', 'ADMIN', 'DIRECTOR'].includes(user?.role || '')) {
+            items.push({
+                id: 'subscription',
+                label: 'ASSINATURA',
+                icon: CreditCard,
+                path: '/dashboard/subscription'
             });
         }
 

@@ -82,8 +82,8 @@ export class AuthService {
         }
 
         if (isOverdue) {
-          // Allow OWNER/ADMIN to solve the issue. Block others.
-          const allowedRoles = ['OWNER', 'ADMIN', 'MASTER'];
+          // Allow OWNER/ADMIN/DIRECTOR to solve the issue. Block others.
+          const allowedRoles = ['OWNER', 'ADMIN', 'MASTER', 'DIRECTOR'];
           if (!allowedRoles.includes(user.role)) {
             throw new Error('SUBSCRIPTION_OVERDUE'); // Catch below
           }
