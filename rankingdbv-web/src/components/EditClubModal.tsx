@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/axios';
+import { useQuery } from '@tanstack/react-query';
 import { Modal } from './Modal';
 import { toast } from 'sonner';
-import { User as UserIcon, Lock, Shield, Pencil, Save, X, Key } from 'lucide-react';
+import { User as UserIcon, Lock, Shield, Pencil, Save, X, Key, Globe, Building2 } from 'lucide-react';
 import { ROLE_TRANSLATIONS } from '../pages/members/types';
 
 interface User {
@@ -61,6 +62,23 @@ export function EditClubModal({ club, onClose, onSave }: EditClubModalProps) {
             fetchMembers();
         }
     }, [club]);
+
+    // Fetch Supervised Clubs (Clubs in the same region/association)
+    const { data: supervisedClubs = [], isLoading: isLoadingSupervised } = useQuery({
+        queryKey: ['supervised-clubs', formData.region, formData.association],
+        queryFn: async () => {
+            if (!formData.region) return [];
+            // We use the dashboard or find endpoint with filters
+            const res = await api.get('/clubs');
+            // Filter locally or if API supports it, use query params
+            return res.data.filter((c: any) =>
+                c.id !== club.id && // Don't list itself
+                c.region === formData.region &&
+                (!formData.association || c.association === formData.association)
+            );
+        },
+        enabled: !!formData.region
+    });
 
     const fetchMembers = async () => {
         setLoadingMembers(true);
@@ -223,6 +241,42 @@ export function EditClubModal({ club, onClose, onSave }: EditClubModalProps) {
                     </div>
                 </div>
 
+                {/* --- SEÇÃO CLUBES SUPERVISIONADOS (Para Regionais/Distritais) --- */}
+                {(club.name.toUpperCase().includes('REGIONAL') || club.name.toUpperCase().includes('DISTRITO')) && (
+                    <div className="border-t pt-6 space-y-4">
+                        <h4 className="text-xs font-bold text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                            <Building2 className="w-4 h-4" /> Clubes Supervisionados ({supervisedClubs.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-500 italic">
+                            Estes são os clubes que pertencem à {formData.region} / {formData.association}.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                            {supervisedClubs.map((c: any) => (
+                                <div key={c.id} className="flex items-center gap-2 p-2 rounded bg-slate-50 border border-slate-100 group">
+                                    <div className="w-8 h-8 rounded bg-white flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden text-[10px] text-slate-400">
+                                        {c.logoUrl ? <img src={c.logoUrl} className="w-full h-full object-cover" /> : 'DBV'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-bold text-slate-700 truncate">{c.name}</div>
+                                        <div className="text-[10px] text-slate-500 truncate">{c.mission} / {c.district || 'Sem Distrito'}</div>
+                                    </div>
+                                    <Globe className="w-3 h-3 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                </div>
+                            ))}
+                            {supervisedClubs.length === 0 && !isLoadingSupervised && (
+                                <div className="col-span-2 text-center py-4 text-xs text-slate-400 italic">
+                                    Nenhum outro clube encontrado nesta jurisdição.
+                                </div>
+                            )}
+                            {isLoadingSupervised && (
+                                <div className="col-span-2 text-center py-4 text-xs text-slate-400 italic">
+                                    Buscando clubes...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="border-t pt-6" />
 
                 {/* --- SEÇÃO 2: DIRETORIA (DESTAQUE) --- */}
@@ -324,7 +378,7 @@ export function EditClubModal({ club, onClose, onSave }: EditClubModalProps) {
                     </button>
                 </div>
             </div>
-        </Modal>
+        </Modal >
     );
 }
 

@@ -45,6 +45,13 @@ export function Profile() {
     const [cpf, setCpf] = useState('');
     const [mobile, setMobile] = useState('');
 
+    // Regional Fields
+    const [union, setUnion] = useState('');
+    const [mission, setMission] = useState('');
+    const [association, setAssociation] = useState('');
+    const [region, setRegion] = useState('');
+    const [district, setDistrict] = useState('');
+
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Fetch Full User Data from Backend
@@ -68,6 +75,11 @@ export function Profile() {
             setSex(fullUser.sex || '');
             setCpf(fullUser.cpf || '');
             setMobile(fullUser.mobile || '');
+            setUnion(fullUser.union || '');
+            setMission(fullUser.mission || '');
+            setAssociation(fullUser.association || '');
+            setRegion(fullUser.region || '');
+            setDistrict(fullUser.district || '');
             if (fullUser.birthDate) {
                 const date = new Date(fullUser.birthDate);
                 setBirthDate(date.toISOString().split('T')[0]);
@@ -211,7 +223,12 @@ export function Profile() {
             sex,
             mobile,
             cpf,
-            birthDate
+            birthDate,
+            union,
+            mission,
+            association,
+            region,
+            district
         };
         if (password) payload.password = password;
 
@@ -376,6 +393,62 @@ export function Profile() {
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
                                 />
                                 <p className="text-xs text-slate-400 mt-1">O email não pode ser alterado.</p>
+                            </div>
+                            <div className="space-y-4 pt-4">
+                                <h3 className="text-lg font-medium text-slate-700 border-b pb-2 flex items-center gap-2">
+                                    <LucideIcons.Shield className="w-5 h-5 text-blue-500" />
+                                    Dados de Regional / Coordenação
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">União</label>
+                                        <input
+                                            type="text"
+                                            value={union}
+                                            onChange={e => setUnion(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Associação (Geral)</label>
+                                        <input
+                                            type="text"
+                                            value={association}
+                                            onChange={e => setAssociation(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Missão/Assoc. Local</label>
+                                        <input
+                                            type="text"
+                                            value={mission}
+                                            onChange={e => setMission(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Região</label>
+                                        <input
+                                            type="text"
+                                            value={region}
+                                            onChange={e => setRegion(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Distrito</label>
+                                        <input
+                                            type="text"
+                                            value={district}
+                                            onChange={e => setDistrict(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-400 italic">Esses campos definem quais clubes você supervisiona se for um Coordenador.</p>
                             </div>
                         </div>
 
