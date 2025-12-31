@@ -205,127 +205,89 @@ export function HierarchySelector({ value, onChange, readOnly = false }: Hierarc
                 </div>
             )}
 
-            {/* REGION (Creatable) */}
+            {/* REGION (Standard Input with Suggestions) */}
             <div className="relative">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                     Região
                     {loadingRegions && <Loader2 className="w-3 h-3 animate-spin inline ml-2 text-slate-400" />}
                 </label>
-                <Combobox
-                    value={value.region}
-                    onChange={(val) => handleChange('region', val || '')}
-                    disabled={readOnly || !value.association}
-                >
-                    <div className="relative">
-                        <Combobox.Input
-                            className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                            onChange={(event) => setQueryRegion(event.target.value)}
-                            onBlur={(event) => handleChange('region', event.target.value)}
-                            displayValue={(val: string) => val}
-                            placeholder={value.association ? "R1, Região 1..." : "Selecione a Associação primeiro"}
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
-                            <ChevronsUpDown className="w-4 h-4" />
-                        </Combobox.Button>
+                <div className="relative group">
+                    <input
+                        type="text"
+                        className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                        value={value.region}
+                        onChange={(e) => {
+                            handleChange('region', e.target.value);
+                            setQueryRegion(e.target.value);
+                        }}
+                        placeholder={value.association ? "R1, Região 1..." : "Selecione a Associação primeiro"}
+                        disabled={readOnly || !value.association}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 pointer-events-none">
+                        <ChevronsUpDown className="w-4 h-4" />
                     </div>
-                    {value.association && (
-                        <Combobox.Options className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
-                            {/* Allow Creating New Option */}
-                            {queryRegion.length > 0 && !regions.some(r => r.toLowerCase() === queryRegion.toLowerCase()) && (
-                                <Combobox.Option
-                                    value={queryRegion}
-                                    className={({ active }) =>
-                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-green-100 text-green-900' : 'text-slate-900'}`
-                                    }
-                                >
-                                    Usar &quot;{queryRegion}&quot;
-                                </Combobox.Option>
-                            )}
+
+                    {/* Suggestions Dropdown */}
+                    {value.association && queryRegion && filteredRegions.length > 0 && !filteredRegions.includes(value.region) && (
+                        <div className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm hidden group-focus-within:block hover:block">
                             {filteredRegions.map((r) => (
-                                <Combobox.Option
+                                <div
                                     key={r}
-                                    value={r}
-                                    className={({ active }) =>
-                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-green-100 text-green-900' : 'text-slate-900'}`
-                                    }
+                                    className="cursor-pointer select-none py-2 pl-4 pr-4 hover:bg-green-100 text-slate-900"
+                                    onClick={() => {
+                                        handleChange('region', r);
+                                        setQueryRegion(''); // Hide suggestions after selection
+                                    }}
                                 >
-                                    {({ selected }) => (
-                                        <>
-                                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{r}</span>
-                                            {selected && (
-                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-green-600">
-                                                    <Check className="w-5 h-5" />
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
-                                </Combobox.Option>
+                                    {r}
+                                </div>
                             ))}
-                        </Combobox.Options>
+                        </div>
                     )}
-                </Combobox>
+                </div>
             </div>
 
 
-            {/* DISTRICT (Creatable) */}
+            {/* DISTRICT (Standard Input with Suggestions) */}
             <div className="relative">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                     Distrito
                     {loadingDistricts && <Loader2 className="w-3 h-3 animate-spin inline ml-2 text-slate-400" />}
                 </label>
-                <Combobox
-                    value={value.district}
-                    onChange={(val) => handleChange('district', val || '')}
-                    disabled={readOnly || !value.region}
-                >
-                    <div className="relative">
-                        <Combobox.Input
-                            className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                            onChange={(event) => setQueryDistrict(event.target.value)}
-                            onBlur={(event) => handleChange('district', event.target.value)}
-                            displayValue={(val: string) => val}
-                            placeholder={value.region ? "Distrito Central..." : "Selecione a Região primeiro"}
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
-                            <ChevronsUpDown className="w-4 h-4" />
-                        </Combobox.Button>
+                <div className="relative group">
+                    <input
+                        type="text"
+                        className="w-full pl-3 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                        value={value.district}
+                        onChange={(e) => {
+                            handleChange('district', e.target.value);
+                            setQueryDistrict(e.target.value);
+                        }}
+                        placeholder={value.region ? "Distrito Central..." : "Selecione a Região primeiro"}
+                        disabled={readOnly || !value.region}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 pointer-events-none">
+                        <ChevronsUpDown className="w-4 h-4" />
                     </div>
-                    {value.region && (
-                        <Combobox.Options className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
-                            {/* Allow Creating New Option */}
-                            {queryDistrict.length > 0 && !districts.includes(queryDistrict) && (
-                                <Combobox.Option
-                                    value={queryDistrict}
-                                    className={({ active }) =>
-                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-green-100 text-green-900' : 'text-slate-900'}`
-                                    }
-                                >
-                                    Usar &quot;{queryDistrict}&quot;
-                                </Combobox.Option>
-                            )}
+
+                    {/* Suggestions Dropdown */}
+                    {value.region && queryDistrict && filteredDistricts.length > 0 && !filteredDistricts.includes(value.district) && (
+                        <div className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm hidden group-focus-within:block hover:block">
                             {filteredDistricts.map((d) => (
-                                <Combobox.Option
+                                <div
                                     key={d}
-                                    value={d}
-                                    className={({ active }) =>
-                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-green-100 text-green-900' : 'text-slate-900'}`
-                                    }
+                                    className="cursor-pointer select-none py-2 pl-4 pr-4 hover:bg-green-100 text-slate-900"
+                                    onClick={() => {
+                                        handleChange('district', d);
+                                        setQueryDistrict(''); // Hide suggestions
+                                    }}
                                 >
-                                    {({ selected }) => (
-                                        <>
-                                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{d}</span>
-                                            {selected && (
-                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-green-600">
-                                                    <Check className="w-5 h-5" />
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
-                                </Combobox.Option>
+                                    {d}
+                                </div>
                             ))}
-                        </Combobox.Options>
+                        </div>
                     )}
-                </Combobox>
+                </div>
             </div>
         </div>
     );
