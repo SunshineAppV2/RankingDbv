@@ -199,6 +199,21 @@ export class ClubsService implements OnModuleInit {
             _count: { id: true }
         });
 
+        // Fetch Directors (OWNER/ADMIN) for these clubs to get contact info
+        const directors = await this.prisma.user.findMany({
+            where: {
+                clubId: { in: clubs.map(c => c.id) },
+                role: { in: ['OWNER', 'DIRECTOR', 'ADMIN'] }, // Prioritize Owner/Director
+                isActive: true
+            },
+            select: {
+                clubId: true,
+                name: true,
+                mobile: true,
+                role: true
+            }
+        });
+
         // Process results
         return clubs.map(club => {
             // Filter counts for this club
@@ -215,11 +230,17 @@ export class ClubsService implements OnModuleInit {
                 }
             });
 
+            // Find Director
+            const director = directors.find(d => d.clubId === club.id && (d.role === 'OWNER' || d.role === 'DIRECTOR'))
+                || directors.find(d => d.clubId === club.id);
+
             return {
                 ...club,
                 activeMembers: paid,
                 freeMembers: free,
-                totalMembers: paid + free
+                totalMembers: paid + free,
+                directorName: director?.name || 'N/A',
+                directorMobile: director?.mobile || null
             };
         });
     }

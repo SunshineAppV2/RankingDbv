@@ -51,7 +51,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
         if (path.includes('/members') || path.includes('/classes') || path.includes('/events') || path.includes('/meetings') || path.includes('/secretary') || path.includes('/approvals')) return 'management';
         if (path.includes('/financial') || path.includes('/treasury') || path.includes('/master-treasury')) return 'financial';
         if (path.includes('/reports') || path.includes('/ranking') || path.includes('/signatures')) return 'reports';
-        if (path.includes('/regional-ranking') || path.includes('/coordinator-approvals') || path.includes('/hierarchy')) return 'coordinator';
+        if (path.includes('/regional-ranking') || path.includes('/coordinator-approvals') || path.includes('/hierarchy') || path.includes('/clubs-directory')) return 'coordinator';
         if (path.includes('/store')) return 'store';
         if (path.includes('/settings') || path.includes('/admin')) return 'config';
         return null;
@@ -157,6 +157,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
             ];
 
             if (user?.role !== 'OWNER') {
+                coordinatorSubItems.push({ id: 'club-directory', label: 'Diretório de Clubes', icon: Building2, path: '/dashboard/clubs-directory' });
                 coordinatorSubItems.push({ id: 'coordinator-approvals', label: 'Intervenções', icon: Shield, path: '/dashboard/coordinator-approvals' });
                 coordinatorSubItems.push({ id: 'hierarchy', label: 'Clubes / Hierarquia', icon: Globe, path: '/dashboard/hierarchy' });
             }
