@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/axios';
-import { Download, Shield, Database, Save, Server } from 'lucide-react';
+import { Download, Shield, Database, Save, Server, CreditCard, Activity } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { AccessControlEditor } from '../components/AccessControlEditor';
@@ -211,6 +211,16 @@ export function Settings() {
                     }} isPending={updateClubMutation.isPending} />
                 </div>
 
+                {/* --- Master Section: Payment Gateway Control --- */}
+                {(user?.email === 'master@cantinhodbv.com' || user?.role === 'MASTER') && (
+                    <MasterPaymentsConfig />
+                )}
+
+                {/* --- Director Section: Subscription Status & Checkout --- */}
+                {['OWNER', 'DIRECTOR'].includes(user?.role || '') && (
+                    <DirectorSubscription club={clubData} />
+                )}
+
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3">
@@ -226,3 +236,138 @@ export function Settings() {
         </div>
     );
 }
+
+function MasterPaymentsConfig() {
+    const queryClient = useQueryClient();
+    const { data: settings } = useQuery({
+        queryKey: ['public-settings'],
+        queryFn: async () => {
+            const res = await api.get('/payments/public-settings');
+            return res.data;
+        }
+    });
+
+    const isEnabled = settings?.mercadopago_enabled === true;
+
+    const toggleMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            await api.patch('/payments/settings/mercadopago_enabled', { value: enabled });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['public-settings'] });
+            toast.success('Configuração de pagamentos atualizada!');
+        }
+    });
+
+    const setupPlansMutation = useMutation({
+        mutationFn: async () => {
+            const promise = api.post('/payments/setup-plans');
+            toast.promise(promise, {
+                loading: 'Criando planos no Mercado Pago...',
+                success: 'Planos configurados!',
+                error: 'Erro ao configurar planos.'
+            });
+            await promise;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['public-settings'] });
+        }
+    });
+
+    return (
+        <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                        <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Pagamentos Mercado Pago (Master)</h3>
+                        <p className="text-xs text-slate-500">Ative ou desative a cobrança automática via Mercado Pago.</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => toggleMutation.mutate(!isEnabled)}
+                    className={`px-4 py-2 rounded-lg font-bold transition-all ${isEnabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    {isEnabled ? 'Ativado' : 'Desativado'}
+                </button>
+            </div>
+
+            <div className="flex gap-4">
+                <button
+                    onClick={() => setupPlansMutation.mutate()}
+                    className="flex-1 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors"
+                >
+                    Reinicializar Planos (MP)
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function DirectorSubscription({ club }: { club: any }) {
+    const { data: settings } = useQuery({
+        queryKey: ['public-settings'],
+        queryFn: async () => {
+            const res = await api.get('/payments/public-settings');
+            return res.data;
+        }
+    });
+
+    if (!settings?.mercadopago_enabled) return null;
+
+    const plans = [
+        { name: 'Mensal', price: '39,90', id: settings.mercadopago_plan_ids?.find((p: any) => p.key === 'plano_mensal')?.id },
+        { name: 'Trimestral', price: '109,90', id: settings.mercadopago_plan_ids?.find((p: any) => p.key === 'plano_trimestral')?.id },
+        { name: 'Anual', price: '399,90', id: settings.mercadopago_plan_ids?.find((p: any) => p.key === 'plano_anual')?.id },
+    ];
+
+    return (
+        <div className="md:col-span-2 bg-slate-900 text-white p-6 rounded-xl shadow-xl overflow-hidden relative">
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <Activity className="w-5 h-5 text-blue-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Plano de Assinatura</span>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                    <div>
+                        <h3 className="text-2xl font-bold mb-1">Mantenha seu clube ativo</h3>
+                        <p className="text-slate-400 text-sm max-w-md">Escolha um dos planos abaixo para liberar todas as funcionalidades e garantir o acesso da sua diretoria.</p>
+                        <div className="mt-2 flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold border border-blue-500/30">
+                                STATUS: {club?.subscriptionStatus || 'TRIAL'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        {plans.map(plan => (
+                            <button
+                                key={plan.name}
+                                onClick={() => {
+                                    if (plan.id) {
+                                        window.open(`https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${plan.id}`, '_blank');
+                                    } else {
+                                        toast.error('ID do plano não configurado.');
+                                    }
+                                }}
+                                className="bg-white text-slate-900 px-4 py-3 rounded-xl flex flex-col items-center hover:scale-105 transition-transform shadow-lg min-w-[120px]"
+                            >
+                                <span className="text-[10px] font-bold uppercase text-slate-500">{plan.name}</span>
+                                <span className="text-lg font-black text-blue-600">R$ {plan.price}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Visual Background Element */}
+            <div className="absolute right-0 bottom-0 opacity-10">
+                <CreditCard className="w-64 h-64 -mb-20 -mr-20 rotate-12" />
+            </div>
+        </div>
+    );
+}
+
