@@ -173,12 +173,20 @@ export class ClubsService implements OnModuleInit {
         });
     }
 
-    async getAllClubsDetailed() {
-        // We need advanced aggregation here.
-        // Prisma doesn't support conditional count in select easily without raw query or grouping.
-        // Let's fetch all necessary counts via groupBy
+    async getAllClubsDetailed(currentUser?: any) {
+        const where: any = {};
+
+        if (currentUser) {
+            const isMaster = currentUser.email === 'master@cantinhodbv.com' || currentUser.role === 'MASTER';
+            if (!isMaster) {
+                if (currentUser.role === 'COORDINATOR_DISTRICT') where.district = currentUser.district || '';
+                if (currentUser.role === 'COORDINATOR_REGIONAL') where.region = currentUser.region || '';
+                if (currentUser.role === 'COORDINATOR_AREA') where.association = currentUser.association || '';
+            }
+        }
 
         const clubs = await this.prisma.club.findMany({
+            where,
             orderBy: { name: 'asc' }
         });
 

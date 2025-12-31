@@ -114,5 +114,11 @@ export class UpdateUserDto {
 
     @IsString() @IsOptional() healthNotes?: string;
 
+    @IsString() @IsOptional() association?: string;
+    @IsString() @IsOptional() district?: string;
+    @IsString() @IsOptional() region?: string;
+    @IsString() @IsOptional() mission?: string;
+    @IsString() @IsOptional() union?: string;
+
     @IsOptional() pointsHistory?: any;
 }

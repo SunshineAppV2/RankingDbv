@@ -519,6 +519,14 @@ enum TransactionStatus {
   CANCELED
 }
 
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String // JSON string
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
 
 model Minute {
   id        String     @id @default(uuid())

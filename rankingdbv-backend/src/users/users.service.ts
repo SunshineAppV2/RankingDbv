@@ -292,7 +292,7 @@ export class UsersService {
 
   // Cria um novo usuário
   async create(createUserDto: any): Promise<User> {
-    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, region, mission, union, childrenIds, password, referralCode, ...rest } = createUserDto; // Strip extra fields
+    const { clubId, unitId, dbvClass, birthDate, schoolShift, clubName, mission, union, childrenIds, password, referralCode, ...rest } = createUserDto; // Strip extra fields
 
     // 1. Check Subscription Limits
     if (clubId) {

@@ -38,8 +38,12 @@ export class ClubsController {
     @UseGuards(JwtAuthGuard)
     @Get('dashboard')
     getDashboard(@Request() req) {
-        if (req.user.email !== 'master@cantinhodbv.com' && req.user.role !== 'MASTER') throw new Error('Acesso negado');
-        return this.clubsService.getAllClubsDetailed();
+        const isMaster = req.user.email === 'master@cantinhodbv.com' || req.user.role === 'MASTER';
+        const isCoordinator = ['COORDINATOR_REGIONAL', 'COORDINATOR_DISTRICT', 'COORDINATOR_AREA'].includes(req.user.role);
+
+        if (!isMaster && !isCoordinator) throw new Error('Acesso negado');
+
+        return this.clubsService.getAllClubsDetailed(req.user);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -108,7 +112,7 @@ export class ClubsController {
 
     @UseGuards(JwtAuthGuard)
     @Put(':id')
-    update(@Param('id') id: string, @Body() data: { name?: string; logoUrl?: string; settings?: any }) {
+    update(@Param('id') id: string, @Body() data: { name?: string; logoUrl?: string; settings?: any; union?: string; mission?: string; region?: string; district?: string; association?: string }) {
         return this.clubsService.update(id, data);
     }
 
