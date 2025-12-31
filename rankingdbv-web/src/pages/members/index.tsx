@@ -123,9 +123,11 @@ function MembersContent() {
     // Mutations
     const createMutation = useMutation({
         mutationFn: async (data: any) => {
+            // Respect null clubId (for coordinators)
+            const clubId = data.clubId !== undefined ? data.clubId : user?.clubId;
             return await api.post('/users', {
                 ...data,
-                clubId: data.clubId || user?.clubId
+                clubId
             });
         },
         onSuccess: () => {
@@ -202,7 +204,16 @@ function MembersContent() {
     const handleFormSubmit = (formData: any) => {
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password;
-        // cleanup
+
+        // Handle clubId for Coordinators/Master
+        if (payload.clubId === '') payload.clubId = null;
+
+        // Cleanup empty strings for optional fields that might have validation
+        ['birthDate', 'unitId', 'dbvClass'].forEach(k => {
+            if (payload[k] === '') payload[k] = null;
+        });
+
+        // cleanup system fields
         ['id', 'classProgress', 'requirements', 'createdAt', 'updatedAt', 'UserRequirements', 'club', 'unit', 'status'].forEach(k => delete payload[k]);
 
         if (editingMember) updateMutation.mutate({ id: editingMember.id, updates: payload });

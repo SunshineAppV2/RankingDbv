@@ -30,7 +30,7 @@ export const CoordinatorApprovals: React.FC = () => {
     const { data: pending = [], isLoading } = useQuery<PendingRequirement[]>({
         queryKey: ['coordinator-pending-approvals'],
         queryFn: async () => {
-            const res = await api.get('/requirements/pending');
+            const res = await api.get('/requirements/approvals/pending');
             return res.data;
         }
     });
