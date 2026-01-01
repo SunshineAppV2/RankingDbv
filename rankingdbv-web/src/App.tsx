@@ -41,6 +41,7 @@ import { MasterRequirements } from './pages/admin/MasterRequirements';
 import { MasterSpecialties } from './pages/admin/MasterSpecialties';
 import { RegionalRanking } from './pages/RegionalRanking';
 import { RegionalDashboard } from './pages/reports/RegionalDashboard';
+import { ClubDirectory } from './pages/ClubDirectory';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { CoordinatorApprovals } from './pages/CoordinatorApprovals';
 
@@ -124,6 +125,7 @@ function App() {
                 <Route element={<ProtectedRoute allowedRoles={['MASTER', 'OWNER', 'COORDINATOR_REGIONAL', 'COORDINATOR_DISTRICT', 'COORDINATOR_AREA']} />}>
                   <Route path="regional-ranking" element={<RegionalRanking />} />
                   <Route path="regional-dashboard" element={<RegionalDashboard />} />
+                  <Route path="clubs-directory" element={<ClubDirectory />} />
                 </Route>
 
                 <Route element={<ProtectedRoute allowedRoles={['MASTER', 'COORDINATOR_REGIONAL', 'COORDINATOR_DISTRICT', 'COORDINATOR_AREA']} />}>
